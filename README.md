@@ -205,21 +205,7 @@ npm run dev
 
 Open your browser and navigate to: **`http://localhost:5173`**
 
-### Running Test Suites
 
-Run the complete deterministic test suite:
-
-```bash
-node src/test/domain.test.js
-node src/test/feasibility.test.js
-node src/test/generation.test.js
-node src/test/constraints.test.js
-node src/test/history.test.js
-node src/test/edit.test.js
-node src/test/finance.test.js
-node src/test/export.test.js
-```
-*(All 8 test suites and 78/78 assertions pass)*
 
 ### Building for Production
 
