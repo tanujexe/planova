@@ -31,7 +31,7 @@ const minimalDoc = ExportServiceInstance.generatePdf({ project: minimalProject }
 assert(minimalDoc !== null, 'Generates valid PDF even on minimal project without crashing');
 
 // Test 4: Check filename generation formatting
-const filename = `${(SHARMA_RESIDENCE_PROJECT.name || 'Drafted-Concept').replace(/\s+/g, '-').toLowerCase()}-summary.pdf`;
+const filename = `${(SHARMA_RESIDENCE_PROJECT.name || 'Planova-Concept').replace(/\s+/g, '-').toLowerCase()}-summary.pdf`;
 assert(filename === 'sharma-residence-summary.pdf', `Generated expected export filename: ${filename}`);
 
 console.log('--- Finished: 4/4 export assertions passed ---');

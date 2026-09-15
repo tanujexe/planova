@@ -100,9 +100,9 @@ export const NaturalLanguageAssistant = ({
           </div>
           <div>
             <h3 className="font-display font-bold text-sm text-ink">
-              Drafted AI Copilot
+              Planova AI Copilot
             </h3>
-            <p className="text-[10px] font-mono uppercase tracking-wider text-sage-800">
+            <p className="text-[10px] uppercase tracking-wider text-sage-800 font-semibold">
               Spatial Mutation Engine
             </p>
           </div>

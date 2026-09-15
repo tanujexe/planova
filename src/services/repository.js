@@ -2,7 +2,8 @@ import { validateProject } from '../domain/project.js';
 import { SHARMA_RESIDENCE_PROJECT } from '../data/demoProject.js';
 import { generateId } from '../lib/ids.js';
 
-const STORAGE_KEY = 'drafted_projects_v1';
+const STORAGE_KEY = 'planova_projects_v1';
+const LEGACY_STORAGE_KEY = 'drafted_projects_v1';
 
 // In-memory fallback for non-browser / test environments
 const memoryStorage = new Map();
@@ -29,7 +30,14 @@ class ProjectRepositoryService {
 
   init() {
     try {
-      const stored = getStorageItem(STORAGE_KEY);
+      let stored = getStorageItem(STORAGE_KEY);
+      if (!stored) {
+        const legacy = getStorageItem(LEGACY_STORAGE_KEY);
+        if (legacy) {
+          stored = legacy;
+          setStorageItem(STORAGE_KEY, legacy);
+        }
+      }
       if (!stored || stored === '[]') {
         this.seedDemoIfEmpty();
       }

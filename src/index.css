@@ -14,7 +14,8 @@
   body {
     background-color: #F7F2EB;
     color: #1E261F;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-feature-settings: normal;
+    font-variant-numeric: normal;
   }
 
   /* Architectural subtle grid background with warm #C08552 ochre tone */

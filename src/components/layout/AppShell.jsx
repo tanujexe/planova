@@ -33,19 +33,6 @@ export const AppShell = ({ children }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-linen text-ink font-sans">
-      {/* Top Disclaimer Pill Bar */}
-      <div className="bg-sand-200/90 border-b border-sand-300 px-4 py-1.5 text-xs text-ink-muted flex items-center justify-between">
-        <div className="flex items-center gap-2 max-w-5xl mx-auto w-full">
-          <span className="flex items-center gap-1 font-medium text-sage-800 bg-sage-100 px-2 py-0.5 rounded border border-sage-300/60 shrink-0">
-            <Info className="w-3.5 h-3.5 text-sage-600 shrink-0" />
-            Conceptual Design Tool
-          </span>
-          <span className="truncate text-[11px] sm:text-xs">
-            Drafted is an AI copilot for spatial ideation. All plans, structural ideas, and cost estimates require professional review by a licensed architect or engineer before construction.
-          </span>
-        </div>
-      </div>
-
       {/* Main Header */}
       <header className="sticky top-0 z-40 bg-linen/95 backdrop-blur border-b border-sand-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -58,8 +45,8 @@ export const AppShell = ({ children }) => {
                   <Compass className="w-5 h-5 transition-transform group-hover:rotate-45" />
                 </div>
                 <div>
-                  <span className="font-display text-xl font-bold tracking-tight text-ink">Drafted</span>
-                  <span className="hidden sm:inline-block ml-2 text-[10px] font-mono tracking-widest uppercase bg-sand-200 text-ink-muted px-1.5 py-0.5 rounded border border-sand-300">
+                  <span className="font-display text-xl font-bold tracking-tight text-ink">Planova</span>
+                  <span className="hidden sm:inline-block ml-2 text-[10px] tracking-widest uppercase bg-sand-200 text-ink-muted px-1.5 py-0.5 rounded border border-sand-300 font-semibold">
                     India MVP
                   </span>
                 </div>

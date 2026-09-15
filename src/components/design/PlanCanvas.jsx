@@ -202,18 +202,18 @@ export const PlanCanvas = ({
         >
           <Maximize2 className="w-4 h-4" />
         </button>
-        <span className="font-mono text-[11px] text-ink-muted px-1.5">
+        <span className="font-medium text-[11px] text-ink-muted px-1.5">
           {Math.round(scale * 100)}%
         </span>
       </div>
 
       {/* Plot Orientation */}
       <div className="absolute top-4 right-4 z-20 bg-white/95 backdrop-blur px-3.5 py-2 rounded-xl border border-sand-300 shadow-elevated text-xs flex items-center gap-2.5">
-        <div className="w-6 h-6 rounded-full bg-sage-100 text-sage-700 flex items-center justify-center font-mono font-bold text-[10px] border border-sage-300">
+        <div className="w-6 h-6 rounded-full bg-sage-100 text-sage-700 flex items-center justify-center font-bold text-[10px] border border-sage-300">
           N
         </div>
         <div>
-          <span className="text-[10px] uppercase font-mono text-ink-muted block leading-none">Facing</span>
+          <span className="text-[10px] uppercase font-semibold text-ink-muted block leading-none">Facing</span>
           <span className="font-bold text-ink text-xs capitalize">{plot.facing || 'North'}</span>
         </div>
       </div>
@@ -231,7 +231,7 @@ export const PlanCanvas = ({
       >
         
         {/* Front Road Header */}
-        <div className="absolute -top-7 left-0 right-0 h-6 bg-sand-200/90 border border-sand-300 rounded-t flex items-center justify-center text-[10px] font-mono uppercase tracking-wider text-ink font-bold">
+        <div className="absolute -top-7 left-0 right-0 h-6 bg-sand-200/90 border border-sand-300 rounded-t flex items-center justify-center text-[10px] uppercase tracking-wider text-ink font-bold">
           🛣️ Front Access Road ({plot.roadSide || 'North'}) • Width: {plotW} ft
         </div>
 
@@ -284,7 +284,7 @@ export const PlanCanvas = ({
               </div>
 
               {/* Room Dimensions */}
-              <div className="font-mono text-[9px] text-ink-muted flex items-center justify-between pt-1 border-t border-ink/10 pointer-events-none">
+              <div className="font-sans text-[10px] font-medium text-ink-muted flex items-center justify-between pt-1 border-t border-ink/10 pointer-events-none">
                 <span>{room.width}&apos; × {room.height}&apos;</span>
                 <span className="font-semibold text-ink">{roomArea} sq.ft</span>
               </div>

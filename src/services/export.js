@@ -39,7 +39,7 @@ class ExportService {
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text('DRAFTED — AI HOME DESIGN COPILOT', margin + 6, y + 9);
+    doc.text('PLANOVA — AI HOME DESIGN COPILOT', margin + 6, y + 9);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
@@ -174,7 +174,7 @@ class ExportService {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.text(
-      'Drafted is an AI-assisted architectural copilot for preliminary ideation. All room drawings, spatial coordinates, structural representations, Vastu alignments, and cost/BOQ estimates are indicative approximations and must be vetted by a licensed architect, structural engineer, and local municipal authority prior to construction or financial commitment.',
+      'Planova is an AI-assisted architectural copilot for preliminary ideation. All room drawings, spatial coordinates, structural representations, Vastu alignments, and cost/BOQ estimates are indicative approximations and must be vetted by a licensed architect, structural engineer, and local municipal authority prior to construction or financial commitment.',
       margin + 4,
       y + 10,
       { maxWidth: pageWidth - margin * 2 - 8 }
@@ -189,7 +189,7 @@ class ExportService {
    */
   downloadPdf({ project }) {
     const doc = this.generatePdf({ project });
-    const filename = `${(project.name || 'Drafted-Concept').replace(/\s+/g, '-').toLowerCase()}-summary.pdf`;
+    const filename = `${(project.name || 'Planova-Concept').replace(/\s+/g, '-').toLowerCase()}-summary.pdf`;
     doc.save(filename);
   }
 }

@@ -12,7 +12,7 @@ export const EmptyState = ({ onSeedDemo }) => {
         No Projects Yet
       </h3>
       <p className="text-xs text-ink-muted leading-relaxed max-w-md mx-auto mb-6">
-        Begin by creating your first Indian residential plot brief, or launch the pre-configured Sharma Residence demo project to see Drafted in action.
+        Begin by creating your first Indian residential plot brief, or launch the pre-configured Sharma Residence demo project to see Planova in action.
       </p>
 
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3">

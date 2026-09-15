@@ -81,12 +81,8 @@ export const DashboardPage = () => {
         {/* Welcome Hero Banner */}
         <div className="bg-white rounded-2xl p-8 border border-sand-300 shadow-elevated relative overflow-hidden">
           <div className="max-w-2xl relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-sage-100 text-sage-800 text-xs font-semibold rounded-full mb-4 border border-sage-200">
-              <Sparkles className="w-3.5 h-3.5 text-sage-600" />
-              India-Centric Residential Architecture Copilot
-            </div>
             <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-ink mb-3">
-              Describe your plot. Drafted designs your Indian home.
+              Describe your plot. Planova designs your Indian home.
             </h1>
             <p className="text-ink-muted text-sm sm:text-base leading-relaxed mb-6">
               Generate structured, editable 2D floor plans, explore conceptual 3D massing, calculate approximate ₹/sq.ft construction costs, and generate preliminary BOQs tailored for Indian plots and living requirements.

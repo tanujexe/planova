@@ -12,7 +12,7 @@ export class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Drafted ErrorBoundary caught an error:', error, errorInfo);
+    console.error('Planova ErrorBoundary caught an error:', error, errorInfo);
   }
 
   handleReload = () => {

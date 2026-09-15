@@ -66,7 +66,7 @@ export const RoomInspector = ({
       {/* Header */}
       <div className="flex items-start justify-between pb-3 border-b border-sand-200">
         <div>
-          <span className="text-[10px] font-mono uppercase bg-sage-100 text-sage-800 px-2 py-0.5 rounded font-bold border border-sage-200">
+          <span className="text-[10px] uppercase bg-sage-100 text-sage-800 px-2 py-0.5 rounded font-bold border border-sage-200">
             Room Inspector
           </span>
           <h3 className="font-display font-bold text-base text-ink mt-1">
@@ -99,7 +99,7 @@ export const RoomInspector = ({
         {/* Numeric Dimension Sizers */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-linen p-3 rounded-xl border border-sand-200">
-            <span className="text-[10px] uppercase font-mono text-ink-muted block mb-1">
+            <span className="text-[10px] uppercase font-semibold text-ink-muted block mb-1">
               Width (ft)
             </span>
             <div className="flex items-center justify-between gap-1">
@@ -109,7 +109,7 @@ export const RoomInspector = ({
               >
                 -
               </button>
-              <span className="font-mono font-bold text-sm text-ink">
+              <span className="font-sans font-bold text-sm text-ink">
                 {room.width}&apos;
               </span>
               <button
@@ -122,7 +122,7 @@ export const RoomInspector = ({
           </div>
 
           <div className="bg-linen p-3 rounded-xl border border-sand-200">
-            <span className="text-[10px] uppercase font-mono text-ink-muted block mb-1">
+            <span className="text-[10px] uppercase font-semibold text-ink-muted block mb-1">
               Length (ft)
             </span>
             <div className="flex items-center justify-between gap-1">
@@ -132,7 +132,7 @@ export const RoomInspector = ({
               >
                 -
               </button>
-              <span className="font-mono font-bold text-sm text-ink">
+              <span className="font-sans font-bold text-sm text-ink">
                 {room.height}&apos;
               </span>
               <button
@@ -152,11 +152,11 @@ export const RoomInspector = ({
               <Move className="w-3.5 h-3.5 text-sage-600" />
               <span>Grid Placement (X, Y)</span>
             </span>
-            <span className="font-mono text-ink-muted text-[11px]">
+            <span className="font-sans font-semibold text-ink-muted text-[11px]">
               ({room.x}, {room.y}) ft
             </span>
           </div>
-          <div className="grid grid-cols-4 gap-1.5 text-xs font-mono">
+          <div className="grid grid-cols-4 gap-1.5 text-xs font-sans">
             <button
               onClick={() => handlePositionChange('y', -1)}
               className="py-1.5 bg-white border border-sand-300 rounded-lg hover:bg-sand-100 text-center font-bold"
@@ -192,7 +192,7 @@ export const RoomInspector = ({
         <div className="p-3 bg-sage-50 rounded-xl border border-sage-200 space-y-1.5 text-xs">
           <div className="flex justify-between items-center">
             <span className="text-ink-muted text-[11px]">Calculated Footprint:</span>
-            <span className="font-mono font-bold text-ink">{area} sq.ft</span>
+            <span className="font-sans font-bold text-ink">{area} sq.ft</span>
           </div>
           <div className="pt-1.5 border-t border-sage-200/80">
             <div className="flex items-center gap-1 font-semibold text-sage-900 text-[11px]">

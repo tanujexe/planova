@@ -1,4 +1,4 @@
-# 🏛️ DRAFTED — AI Home Design & Construction Copilot
+# 🏛️ PLANOVA — AI Home Design & Construction Copilot
 
 <p align="center">
   <strong>India-Centric, Frontend-First Architectural Ideation & Budget Optimization Platform</strong><br>
@@ -25,9 +25,9 @@ In India, over **80% of independent residential homes** are built through inform
 
 ---
 
-## 💡 The Solution: Drafted
+## 💡 The Solution: Planova
 
-**Drafted** is an intelligent, deterministic, frontend-first architectural copilot tailored specifically for the Indian residential market. It operates entirely offline without expensive backend dependencies, generating constraint-validated 2D blueprints, procedural 3D massing, preliminary material takeoffs (BOQ), and INR cost breakdowns.
+**Planova** is an intelligent, deterministic, frontend-first architectural copilot tailored specifically for the Indian residential market. It operates entirely offline without expensive backend dependencies, generating constraint-validated 2D blueprints, procedural 3D massing, preliminary material takeoffs (BOQ), and INR cost breakdowns.
 
 ```
                   ┌────────────────────────────────────────┐
@@ -228,7 +228,7 @@ Emits optimized production bundles to the `dist/` directory.
 
 ## ⚖️ Legal & Conceptual Disclaimer
 
-> **Important Notice:** Drafted is an AI-assisted architectural copilot intended for preliminary ideation, layout visualization, and budget estimation. All generated drawings, spatial dimensions, structural representations, Vastu recommendations, and material/cost estimates are indicative approximations. They must be reviewed and certified by a registered architect, licensed structural engineer, and local municipal authorities before initiating physical construction or entering financial contracts.
+> **Important Notice:** Planova is an AI-assisted architectural copilot intended for preliminary ideation, layout visualization, and budget estimation. All generated drawings, spatial dimensions, structural representations, Vastu recommendations, and material/cost estimates are indicative approximations. They must be reviewed and certified by a registered architect, licensed structural engineer, and local municipal authorities before initiating physical construction or entering financial contracts.
 
 ---
 

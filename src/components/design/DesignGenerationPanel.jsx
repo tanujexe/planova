@@ -85,7 +85,7 @@ export const DesignGenerationPanel = ({
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span className="text-[10px] font-mono uppercase bg-sage-100 text-sage-800 px-2.5 py-0.5 rounded font-semibold border border-sage-200">
+          <span className="text-[10px] uppercase bg-sage-100 text-sage-800 px-2.5 py-0.5 rounded font-semibold border border-sage-200">
             3 AI Concepts Ready
           </span>
           <h2 className="font-display text-2xl font-bold text-ink mt-1">
@@ -129,7 +129,7 @@ export const DesignGenerationPanel = ({
               <div>
                 {/* Header */}
                 <div className="mb-4">
-                  <span className="text-[10px] font-mono uppercase font-bold text-sage-700 bg-sage-50 px-2 py-0.5 rounded border border-sage-200">
+                  <span className="text-[10px] uppercase font-bold text-sage-700 bg-sage-50 px-2 py-0.5 rounded border border-sage-200">
                     {opt.concept === 'balanced' ? 'Balanced' : opt.concept === 'open_living' ? 'Open Living' : 'Vastu Priority'}
                   </span>
                   <h3 className="font-display text-lg font-bold text-ink mt-2">
@@ -142,7 +142,7 @@ export const DesignGenerationPanel = ({
 
                 {/* Mini Blueprint Graphic */}
                 <div className="h-28 bg-linen rounded-xl border border-sand-200 p-2.5 flex flex-col justify-between mb-4 bg-blueprint-grid">
-                  <div className="flex justify-between items-center text-[10px] font-mono text-ink-muted">
+                  <div className="flex justify-between items-center text-[10px] text-ink-muted">
                     <span className="font-bold text-ink">~{opt.areaSqFt} sq.ft</span>
                     <span className="text-sage-700 font-semibold">{opt.roomCount} Rooms</span>
                   </div>
@@ -157,7 +157,7 @@ export const DesignGenerationPanel = ({
                       Kitchen
                     </div>
                   </div>
-                  <div className="text-[9px] font-mono text-ink-muted truncate">
+                  <div className="text-[9px] text-ink-muted truncate">
                     {opt.parkingSummary}
                   </div>
                 </div>

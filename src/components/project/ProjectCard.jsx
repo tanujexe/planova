@@ -41,7 +41,7 @@ export const ProjectCard = ({
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono uppercase bg-sage-100 text-sage-800 px-2 py-0.5 rounded font-semibold border border-sage-200">
+              <span className="text-[10px] uppercase bg-sage-100 text-sage-800 px-2 py-0.5 rounded font-semibold border border-sage-200">
                 {bhk} BHK • {floorLabel}
               </span>
               {project.id === 'sharma-residence' && (
@@ -127,8 +127,8 @@ export const ProjectCard = ({
             <span className="truncate">{project.location || 'India'}</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
-            <span className="bg-linen px-2 py-0.5 rounded border border-sand-200 text-ink">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="bg-linen px-2 py-0.5 rounded border border-sand-200 text-ink font-medium">
               {formatDimension(plotW, unit)} × {formatDimension(plotL, unit)}
             </span>
             <span className="text-sand-400">•</span>
@@ -139,7 +139,7 @@ export const ProjectCard = ({
         {/* Mini Floor Plan Blueprint Thumbnail */}
         <div className="h-28 bg-linen rounded-xl border border-sand-200 p-2.5 flex items-center justify-center relative overflow-hidden mb-5 bg-blueprint-grid">
           <div className="w-full h-full border border-dashed border-sage-300 rounded-lg flex flex-col justify-between p-2 bg-white/60">
-            <div className="flex justify-between items-center text-[10px] font-mono text-ink-muted">
+            <div className="flex justify-between items-center text-[10px] text-ink-muted font-medium">
               <span>{plotW}&apos;</span>
               <span className="uppercase text-sage-700 font-bold text-[9px]">Road Side ({project.plot?.roadSide || 'N'})</span>
               <span>{plotW}&apos;</span>
@@ -155,7 +155,7 @@ export const ProjectCard = ({
                 Kitchen
               </div>
             </div>
-            <div className="flex justify-between items-center text-[9px] font-mono text-ink-muted">
+            <div className="flex justify-between items-center text-[9px] text-ink-muted font-medium">
               <span>Length: {plotL}&apos;</span>
               <span>~{Math.round(area)} sq.ft</span>
             </div>
@@ -166,7 +166,7 @@ export const ProjectCard = ({
       {/* Card Footer */}
       <div className="pt-4 border-t border-sand-200 flex items-center justify-between text-xs">
         <div>
-          <span className="text-[10px] text-ink-muted block uppercase font-mono">Target Budget</span>
+          <span className="text-[10px] text-ink-muted block uppercase font-medium">Target Budget</span>
           <span className="font-display font-bold text-ink text-sm flex items-center">
             {formatInrShorthand(budget)}
           </span>
