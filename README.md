@@ -1,4 +1,4 @@
-# 🏛️ PLANOVA — AI Home Design & Construction Copilot
+# 🏛️ PLANOVA — AI Home Design & Construction Copilot with Vastu
 
 <p align="center">
   <strong>India-Centric, Frontend-First Architectural Ideation & Budget Optimization Platform</strong><br>
