@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: #C08552;
+    --color-linen: #F7F2EB;
+    --color-sand: #EAE2D6;
+    --color-softgray: #EEEEEE;
+    --color-ink: #1E261F;
+  }
+
+  body {
+    background-color: #F7F2EB;
+    color: #1E261F;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Architectural subtle grid background with warm #C08552 ochre tone */
+  .bg-blueprint-grid {
+    background-size: 24px 24px;
+    background-image: 
+      linear-gradient(to right, rgba(192, 133, 82, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(192, 133, 82, 0.08) 1px, transparent 1px);
+  }
+
+  .bg-subtle-dots {
+    background-size: 16px 16px;
+    background-image: radial-gradient(rgba(192, 133, 82, 0.18) 1px, transparent 1px);
+  }
+}
+
+/* Custom sleek scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F7F2EB;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #DFBA9D;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C08552;
+}
