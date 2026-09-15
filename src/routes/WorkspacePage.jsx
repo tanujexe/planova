@@ -121,7 +121,7 @@ export const WorkspacePage = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-linen overflow-hidden">
+    <div className="flex-1 flex flex-col bg-linen overflow-hidden h-[calc(100vh-4rem)] min-h-[600px]">
       
       {/* Toast Alert */}
       {toastMsg && (

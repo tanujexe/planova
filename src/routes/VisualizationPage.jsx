@@ -49,7 +49,7 @@ export const VisualizationPage = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-linen overflow-hidden">
+    <div className="flex-1 flex flex-col bg-linen overflow-hidden h-[calc(100vh-4rem)] min-h-[600px]">
       
       {/* Sub-header Toolbar */}
       <div className="bg-white border-b border-sand-300 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10">
@@ -114,7 +114,7 @@ export const VisualizationPage = () => {
       </div>
 
       {/* 3D Viewport or Fallback */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden h-[calc(100vh-7.5rem)] min-h-[650px] w-full">
         {webGlFailed ? (
           <Fallback2DView floorPlan={plan} projectId={project.id} />
         ) : (

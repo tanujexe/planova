@@ -172,21 +172,63 @@ export const ThreeScene = ({
     const controls = controlsRef.current;
 
     if (preset === 'top') {
-      controls.object.position.set(0, 45, 0.1);
+      controls.object.position.set(0, 26, 0.1);
     } else if (preset === 'perspective') {
-      controls.object.position.set(25, 28, 35);
+      controls.object.position.set(15, 15, 18);
     } else if (preset === 'front') {
-      controls.object.position.set(0, 12, 40);
+      controls.object.position.set(0, 8, 20);
     } else if (preset === 'iso') {
-      controls.object.position.set(-30, 32, 35);
+      controls.object.position.set(-15, 16, 18);
     }
-    controls.target.set(0, 4, 0);
+    controls.target.set(0, 2, 0);
     controls.update();
   };
 
   return (
-    <div className="relative w-full h-full bg-[#EFE9DF] select-none">
+    <div className="relative w-full h-full min-h-[650px] bg-[#181E29] select-none overflow-hidden">
       
+      {/* R3F Canvas Container - Absolute Fill to prevent flex/min-height CSS collapse */}
+      <div className="absolute inset-0 z-0">
+        <Canvas
+          shadows
+          camera={{ position: [-20, 20, 24], fov: 45 }}
+          gl={{ antialias: true, alpha: false }}
+          style={{ width: '100%', height: '100%' }}
+        >
+          <color attach="background" args={['#181E29']} />
+          {/* Architectural Lighting Setup */}
+          <ambientLight intensity={0.7} />
+          <hemisphereLight intensity={0.4} color="#FFFBF5" groundColor="#C7BFB5" />
+          <directionalLight
+            position={[30, 45, 20]}
+            intensity={1.3}
+            castShadow
+            shadow-mapSize-width={2048}
+            shadow-mapSize-height={2048}
+            shadow-camera-far={100}
+            shadow-camera-left={-35}
+            shadow-camera-right={35}
+            shadow-camera-top={35}
+            shadow-camera-bottom={-35}
+          />
+          <directionalLight position={[-20, 25, -20]} intensity={0.4} color="#D8E8F5" />
+
+          <Center>
+            <BuildingModel floorPlan={floorPlan} visibleFloorLevel={visibleFloorLevel} />
+          </Center>
+
+          <OrbitControls
+            ref={controlsRef}
+            makeDefault
+            minDistance={5}
+            maxDistance={80}
+            maxPolarAngle={Math.PI / 2 - 0.05} // Do not go below ground
+            enableDamping
+            dampingFactor={0.05}
+          />
+        </Canvas>
+      </div>
+
       {/* 3D Viewport Controls Toolbar */}
       <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-1.5 bg-white/95 backdrop-blur px-3 py-1.5 rounded-xl border border-sand-300 shadow-elevated text-xs font-semibold">
         <button
@@ -214,44 +256,6 @@ export const ThreeScene = ({
           Front Facade
         </button>
       </div>
-
-      {/* R3F Canvas */}
-      <Canvas
-        shadows
-        camera={{ position: [-28, 30, 32], fov: 45 }}
-        gl={{ antialias: true, alpha: false }}
-      >
-        {/* Architectural Lighting Setup */}
-        <ambientLight intensity={0.7} />
-        <hemisphereLight intensity={0.4} color="#FFFBF5" groundColor="#C7BFB5" />
-        <directionalLight
-          position={[30, 45, 20]}
-          intensity={1.3}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-          shadow-camera-far={100}
-          shadow-camera-left={-35}
-          shadow-camera-right={35}
-          shadow-camera-top={35}
-          shadow-camera-bottom={-35}
-        />
-        <directionalLight position={[-20, 25, -20]} intensity={0.4} color="#D8E8F5" />
-
-        <Center>
-          <BuildingModel floorPlan={floorPlan} visibleFloorLevel={visibleFloorLevel} />
-        </Center>
-
-        <OrbitControls
-          ref={controlsRef}
-          makeDefault
-          minDistance={10}
-          maxDistance={90}
-          maxPolarAngle={Math.PI / 2 - 0.05} // Do not go below ground
-          enableDamping
-          dampingFactor={0.05}
-        />
-      </Canvas>
     </div>
   );
 };
