@@ -178,6 +178,178 @@ export const useProjectStore = create((set, get) => ({
   },
 
   /**
+   * Adds a new room to the active floor
+   */
+  addRoom: (floorLevel, newRoom) => {
+    const active = get().activeProject;
+    if (!active || !active.design) return { success: false, error: 'No active design.' };
+
+    get().pushHistorySnapshot();
+    const nextDesign = structuredClone(active.design);
+    const floor = nextDesign.floors.find((f) => f.level === floorLevel);
+    if (!floor) return { success: false, error: 'Invalid floor.' };
+
+    const roomToAdd = {
+      id: generateId('rm'),
+      type: newRoom.type || 'bedroom',
+      label: newRoom.label || 'New Room',
+      x: newRoom.x || 2,
+      y: newRoom.y || 2,
+      width: newRoom.width || 12,
+      height: newRoom.height || 12,
+      floor: floorLevel,
+      color: newRoom.color || '#F8FAFC',
+      required: false,
+    };
+
+    floor.rooms.push(roomToAdd);
+
+    let totalBuiltUp = 0;
+    nextDesign.floors.forEach(f => f.rooms.forEach(r => totalBuiltUp += (r.width * r.height)));
+    nextDesign.builtUpAreaSqFt = Math.round(totalBuiltUp);
+
+    const updatedProject = { ...active, design: nextDesign };
+    ProjectRepository.save(updatedProject);
+    set({ activeProject: updatedProject });
+    get().loadProjects();
+    return { success: true, room: roomToAdd };
+  },
+
+  /**
+   * Removes a room from the active floor
+   */
+  removeRoom: (floorLevel, roomId) => {
+    const active = get().activeProject;
+    if (!active || !active.design) return { success: false, error: 'No active design.' };
+
+    get().pushHistorySnapshot();
+    const nextDesign = structuredClone(active.design);
+    const floor = nextDesign.floors.find((f) => f.level === floorLevel);
+    if (!floor) return { success: false, error: 'Invalid floor.' };
+
+    floor.rooms = floor.rooms.filter(r => r.id !== roomId);
+    if (floor.openings) {
+      floor.openings = floor.openings.filter(op => op.wallRoomId !== roomId);
+    }
+    if (floor.furniture) {
+      floor.furniture = floor.furniture.filter(f => f.roomId !== roomId);
+    }
+
+    let totalBuiltUp = 0;
+    nextDesign.floors.forEach(f => f.rooms.forEach(r => totalBuiltUp += (r.width * r.height)));
+    nextDesign.builtUpAreaSqFt = Math.round(totalBuiltUp);
+
+    const updatedProject = { ...active, design: nextDesign };
+    ProjectRepository.save(updatedProject);
+    set({ activeProject: updatedProject });
+    get().loadProjects();
+    return { success: true };
+  },
+
+  /**
+   * Automatically furnishes all rooms on the specified floor or all floors
+   * @param {number|'all'} floorLevel 
+   */
+  autoFurnishFloor: (floorLevel = 'all') => {
+    const active = get().activeProject;
+    if (!active || !active.design) return;
+
+    get().pushHistorySnapshot();
+    import('../services/staging.js').then(({ StagingServiceInstance }) => {
+      const updatedDesign = StagingServiceInstance.autoFurnishPlan(active.design, floorLevel);
+      const updatedProject = {
+        ...active,
+        design: updatedDesign,
+      };
+      ProjectRepository.save(updatedProject);
+      set({ activeProject: updatedProject });
+      get().loadProjects();
+    });
+  },
+
+  /**
+   * Clears furniture staging on the specified floor
+   * @param {number|'all'} floorLevel 
+   * @param {string} [roomId=null]
+   */
+  clearFloorFurniture: (floorLevel = 'all', roomId = null) => {
+    const active = get().activeProject;
+    if (!active || !active.design) return;
+
+    get().pushHistorySnapshot();
+    import('../services/staging.js').then(({ StagingServiceInstance }) => {
+      const updatedDesign = StagingServiceInstance.clearStaging(active.design, floorLevel, roomId);
+      const updatedProject = {
+        ...active,
+        design: updatedDesign,
+      };
+      ProjectRepository.save(updatedProject);
+      set({ activeProject: updatedProject });
+      get().loadProjects();
+    });
+  },
+
+  /**
+   * Adds or updates a single furniture item on a floor
+   */
+  addFurnitureItem: (floorLevel, furnitureItem) => {
+    const active = get().activeProject;
+    if (!active || !active.design) return;
+
+    get().pushHistorySnapshot();
+    const nextDesign = structuredClone(active.design);
+    const floor = nextDesign.floors.find((f) => f.level === floorLevel);
+    if (!floor) return;
+
+    if (!floor.furniture) floor.furniture = [];
+    floor.furniture.push(furnitureItem);
+
+    const updatedProject = { ...active, design: nextDesign };
+    ProjectRepository.save(updatedProject);
+    set({ activeProject: updatedProject });
+    get().loadProjects();
+  },
+
+  /**
+   * Updates an existing furniture item (position, rotation)
+   */
+  updateFurnitureItem: (floorLevel, updatedItem) => {
+    const active = get().activeProject;
+    if (!active || !active.design) return;
+
+    const nextDesign = structuredClone(active.design);
+    const floor = nextDesign.floors.find((f) => f.level === floorLevel);
+    if (!floor || !floor.furniture) return;
+
+    const fIdx = floor.furniture.findIndex((f) => f.id === updatedItem.id);
+    if (fIdx >= 0) {
+      floor.furniture[fIdx] = { ...floor.furniture[fIdx], ...updatedItem };
+      const updatedProject = { ...active, design: nextDesign };
+      ProjectRepository.save(updatedProject);
+      set({ activeProject: updatedProject });
+    }
+  },
+
+  /**
+   * Removes a single furniture item
+   */
+  removeFurnitureItem: (floorLevel, furnitureId) => {
+    const active = get().activeProject;
+    if (!active || !active.design) return;
+
+    get().pushHistorySnapshot();
+    const nextDesign = structuredClone(active.design);
+    const floor = nextDesign.floors.find((f) => f.level === floorLevel);
+    if (!floor || !floor.furniture) return;
+
+    floor.furniture = floor.furniture.filter((f) => f.id !== furnitureId);
+    const updatedProject = { ...active, design: nextDesign };
+    ProjectRepository.save(updatedProject);
+    set({ activeProject: updatedProject });
+    get().loadProjects();
+  },
+
+  /**
    * Creates a new project and saves to store
    * @param {any} projectData 
    * @returns {string} ID of new project

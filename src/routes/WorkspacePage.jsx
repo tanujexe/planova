@@ -11,15 +11,23 @@ import {
   IndianRupee,
   CheckCircle2,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Armchair,
+  Trash2,
+  Columns2
 } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore.js';
 import { PlanCanvas } from '../components/design/PlanCanvas.jsx';
 import { RoomInspector } from '../components/design/RoomInspector.jsx';
+import { FurnitureDrawer } from '../components/design/FurnitureDrawer.jsx';
+import { StudioToolbar } from '../components/design/StudioToolbar.jsx';
+import { ThreeScene } from '../components/visualization/ThreeScene.jsx';
 import { NaturalLanguageAssistant } from '../components/assistant/NaturalLanguageAssistant.jsx';
 import { validatePlan } from '../domain/constraints.js';
 import { formatInrShorthand } from '../lib/currency.js';
 import { formatDimension } from '../lib/units.js';
+import { getFurnitureDefinition } from '../domain/furnitureCatalog.js';
+import { generateId } from '../lib/ids.js';
 
 export const WorkspacePage = () => {
   const { projectId } = useParams();
@@ -28,6 +36,13 @@ export const WorkspacePage = () => {
     loadProject, 
     saveActiveProject,
     updateRoom, 
+    addRoom,
+    removeRoom,
+    autoFurnishFloor,
+    clearFloorFurniture,
+    addFurnitureItem,
+    updateFurnitureItem,
+    removeFurnitureItem,
     pushHistorySnapshot,
     undo, 
     redo, 
@@ -37,6 +52,10 @@ export const WorkspacePage = () => {
 
   const [activeFloorLevel, setActiveFloorLevel] = useState(0);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
+  const [selectedFurnitureId, setSelectedFurnitureId] = useState(null);
+  const [isFurnitureDrawerOpen, setIsFurnitureDrawerOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('2d'); // '2d' | 'split' | '3d'
+  const [activeTool, setActiveTool] = useState('select');
   const [previewPlan, setPreviewPlan] = useState(null);
   const [highlightedRoomIds, setHighlightedRoomIds] = useState([]);
   const [toastMsg, setToastMsg] = useState(null);
@@ -87,7 +106,7 @@ export const WorkspacePage = () => {
   };
 
   const validation = validatePlan(plan);
-  const currentFloor = plan.floors?.find(f => f.level === activeFloorLevel) || plan.floors?.[0] || { rooms: [] };
+  const currentFloor = plan.floors?.find(f => f.level === activeFloorLevel) || plan.floors?.[0] || { rooms: [], furniture: [] };
   const rooms = currentFloor.rooms || [];
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
@@ -95,6 +114,25 @@ export const WorkspacePage = () => {
     const res = updateRoom(activeFloorLevel, updated);
     if (!res.success) {
       showToast(res.error || 'Invalid placement');
+    }
+  };
+
+  const handleAddRoomPreset = (preset) => {
+    // Find open coordinate inside setback
+    const newX = Math.min(plan.plot?.width - preset.width - 2, 4 + (rooms.length * 2) % 10);
+    const newY = Math.min(plan.plot?.length - preset.height - 4, 4 + (rooms.length * 3) % 12);
+
+    const res = addRoom(activeFloorLevel, {
+      ...preset,
+      x: Math.max(2, newX),
+      y: Math.max(2, newY),
+    });
+
+    if (res.success) {
+      setSelectedRoomId(res.room.id);
+      showToast(`Added ${preset.label} to floor plan!`);
+    } else {
+      showToast(res.error || 'Could not add room');
     }
   };
 
@@ -120,6 +158,50 @@ export const WorkspacePage = () => {
     setHighlightedRoomIds([]);
   };
 
+  // Staging handlers
+  const handleAutoStage = () => {
+    autoFurnishFloor(activeFloorLevel);
+    showToast(`Auto-staged all rooms on ${currentFloor.label || 'this floor'}!`);
+  };
+
+  const handleClearStaging = () => {
+    clearFloorFurniture(activeFloorLevel);
+    setSelectedFurnitureId(null);
+    showToast(`Cleared furniture on ${currentFloor.label || 'this floor'}.`);
+  };
+
+  const handleAddFurniture = (furnitureType) => {
+    const def = getFurnitureDefinition(furnitureType);
+    if (!def) return;
+
+    let targetX = 5;
+    let targetY = 5;
+    let targetRoomId = null;
+
+    if (selectedRoom) {
+      targetX = selectedRoom.x + Math.max(0.5, (selectedRoom.width - def.width) / 2);
+      targetY = selectedRoom.y + Math.max(0.5, (selectedRoom.height - def.length) / 2);
+      targetRoomId = selectedRoom.id;
+    }
+
+    const newItem = {
+      id: generateId('furn'),
+      type: furnitureType,
+      label: def.label,
+      roomId: targetRoomId,
+      x: Number(targetX.toFixed(2)),
+      y: Number(targetY.toFixed(2)),
+      width: def.width,
+      length: def.length,
+      height: def.height,
+      rotation: 0,
+    };
+
+    addFurnitureItem(activeFloorLevel, newItem);
+    setSelectedFurnitureId(newItem.id);
+    showToast(`Added ${def.label} to floor!`);
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-linen overflow-hidden h-[calc(100vh-4rem)] min-h-[600px]">
       
@@ -143,10 +225,11 @@ export const WorkspacePage = () => {
                 onClick={() => {
                   setActiveFloorLevel(f.level);
                   setSelectedRoomId(null);
+                  setSelectedFurnitureId(null);
                 }}
                 className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                   activeFloorLevel === f.level
-                    ? 'bg-sage-500 text-white shadow-subtle'
+                    ? 'bg-sage-600 text-white shadow-subtle'
                     : 'text-ink-muted hover:text-ink'
                 }`}
               >
@@ -189,8 +272,8 @@ export const WorkspacePage = () => {
           </div>
         </div>
 
-        {/* Center/Right: Geometry Status & Quick Links */}
-        <div className="flex items-center gap-3">
+        {/* Center/Right: Staging Toggle, 3D & Status */}
+        <div className="flex items-center gap-2.5">
           <div className="hidden md:flex items-center gap-2 text-xs font-mono text-ink-muted">
             <span>{plan.plot?.width || 30} × {plan.plot?.length || 50} ft</span>
             <span>•</span>
@@ -205,7 +288,7 @@ export const WorkspacePage = () => {
           ) : validation.valid ? (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sage-50 text-sage-800 rounded-lg font-semibold text-[11px] border border-sage-200">
               <CheckCircle2 className="w-3.5 h-3.5 text-sage-600" />
-              <span>Geometry Valid</span>
+              <span className="hidden sm:inline">Geometry Valid</span>
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-terracotta-light text-terracotta-dark rounded-lg font-semibold text-[11px] border border-terracotta/30">
@@ -215,23 +298,23 @@ export const WorkspacePage = () => {
           )}
 
           <Link
-            to={`/projects/${project.id}/3d`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sand-100 hover:bg-sand-200 text-ink rounded-lg text-xs font-semibold border border-sand-300 transition-colors"
+            to={`/projects/${project.id}/export`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
           >
-            <Box className="w-3.5 h-3.5 text-sage-700" />
-            <span className="hidden sm:inline">3D View</span>
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">CAD Export</span>
           </Link>
         </div>
       </div>
 
-      {/* Tri-Panel Workspace Area */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Main Studio Viewport Area */}
+      <div className="flex-1 flex overflow-hidden relative">
         
         {/* Left Panel: Rooms Schedule */}
-        <aside className="w-64 bg-white border-r border-sand-300 p-4 hidden lg:flex flex-col gap-3 overflow-y-auto shrink-0">
+        <aside className="w-60 bg-white border-r border-sand-300 p-4 hidden xl:flex flex-col gap-3 overflow-y-auto shrink-0">
           <div className="flex items-center justify-between pb-2 border-b border-sand-200">
             <h3 className="font-display font-bold text-xs uppercase tracking-wider text-ink-muted">
-              Rooms on Floor
+              Rooms Schedule
             </h3>
             <span className="text-[10px] font-mono text-sage-800 bg-sage-100 px-1.5 py-0.5 rounded font-bold border border-sage-200">
               {rooms.length} Spaces
@@ -247,7 +330,10 @@ export const WorkspacePage = () => {
               return (
                 <button
                   key={room.id}
-                  onClick={() => setSelectedRoomId(room.id)}
+                  onClick={() => {
+                    setSelectedRoomId(room.id);
+                    setSelectedFurnitureId(null);
+                  }}
                   className={`w-full p-2.5 rounded-xl border text-left transition-all ${
                     isSelected
                       ? 'bg-sage-50 border-sage-500 ring-2 ring-sage-500/20 shadow-subtle'
@@ -261,7 +347,7 @@ export const WorkspacePage = () => {
                       {room.label}
                     </span>
                     {room.type === 'pooja' && (
-                      <span className="text-[9px] bg-sand-200 px-1 rounded font-bold text-ink">
+                      <span className="text-[9px] bg-amber-100 text-amber-900 px-1 rounded font-bold border border-amber-300">
                         NE
                       </span>
                     )}
@@ -276,15 +362,61 @@ export const WorkspacePage = () => {
           </div>
         </aside>
 
-        {/* Center: 2D Interactive Blueprint Canvas */}
-        <main className="flex-1 relative flex flex-col overflow-hidden">
-          <PlanCanvas
-            floorPlan={plan}
-            activeFloorLevel={activeFloorLevel}
-            selectedRoomId={selectedRoomId}
-            highlightedRoomIds={highlightedRoomIds}
-            onSelectRoom={(room) => setSelectedRoomId(room.id)}
-            onUpdateRoom={handleRoomUpdate}
+        {/* Center Canvas Area (2D, Split, or 3D) */}
+        <main className="flex-1 relative flex overflow-hidden">
+          {/* 2D Plan View */}
+          {(viewMode === '2d' || viewMode === 'split') && (
+            <div className={`relative h-full ${viewMode === 'split' ? 'w-1/2 border-r-2 border-slate-700' : 'w-full'}`}>
+              <PlanCanvas
+                floorPlan={plan}
+                activeFloorLevel={activeFloorLevel}
+                selectedRoomId={selectedRoomId}
+                selectedFurnitureId={selectedFurnitureId}
+                highlightedRoomIds={highlightedRoomIds}
+                onSelectRoom={(room) => {
+                  setSelectedRoomId(room.id);
+                  setSelectedFurnitureId(null);
+                }}
+                onUpdateRoom={handleRoomUpdate}
+                onSelectFurniture={(fId) => {
+                  setSelectedFurnitureId(fId);
+                  if (fId) setSelectedRoomId(null);
+                }}
+                onUpdateFurniture={(updated) => updateFurnitureItem(activeFloorLevel, updated)}
+                onRemoveFurniture={(fId) => removeFurnitureItem(activeFloorLevel, fId)}
+              />
+            </div>
+          )}
+
+          {/* 3D Scene View */}
+          {(viewMode === '3d' || viewMode === 'split') && (
+            <div className={`relative h-full ${viewMode === 'split' ? 'w-1/2' : 'w-full'}`}>
+              <ThreeScene
+                floorPlan={plan}
+                visibleFloorLevel={activeFloorLevel}
+              />
+            </div>
+          )}
+
+          {/* Staging Catalog Drawer Floating Overlay */}
+          <FurnitureDrawer
+            isOpen={isFurnitureDrawerOpen}
+            onClose={() => setIsFurnitureDrawerOpen(false)}
+            onAutoStage={handleAutoStage}
+            onClearStaging={handleClearStaging}
+            onAddFurniture={handleAddFurniture}
+            selectedRoom={selectedRoom}
+          />
+
+          {/* Bottom Floating Studio Toolbar */}
+          <StudioToolbar
+            activeTool={activeTool}
+            onSelectTool={setActiveTool}
+            onAddRoom={handleAddRoomPreset}
+            onAutoStage={handleAutoStage}
+            onToggleStagingDrawer={() => setIsFurnitureDrawerOpen(!isFurnitureDrawerOpen)}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
         </main>
 
@@ -292,6 +424,21 @@ export const WorkspacePage = () => {
         <aside className="w-80 bg-white border-l border-sand-300 flex flex-col shrink-0 overflow-y-auto">
           {selectedRoom ? (
             <div className="p-4 flex-1">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-sand-200">
+                <span className="font-display font-bold text-xs uppercase text-ink-muted">Room Inspector</span>
+                <button
+                  onClick={() => {
+                    removeRoom(activeFloorLevel, selectedRoom.id);
+                    setSelectedRoomId(null);
+                    showToast(`Deleted ${selectedRoom.label}`);
+                  }}
+                  className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-xs font-semibold flex items-center gap-1"
+                  title="Delete Room"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+              </div>
               <RoomInspector
                 room={selectedRoom}
                 plot={plan.plot || { width: 30, length: 50 }}

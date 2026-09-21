@@ -192,6 +192,15 @@ class ExportService {
     const filename = `${(project.name || 'Planova-Concept').replace(/\s+/g, '-').toLowerCase()}-summary.pdf`;
     doc.save(filename);
   }
+
+  /**
+   * Downloads layered AutoCAD DXF file
+   * @param {{ project: object }} input
+   */
+  async downloadDxf({ project }) {
+    const { downloadDxfFile } = await import('./dxfBuilder.js');
+    downloadDxfFile(project);
+  }
 }
 
 export const ExportServiceInstance = new ExportService();

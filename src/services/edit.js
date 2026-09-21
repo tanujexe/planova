@@ -52,7 +52,12 @@ class DesignEditService {
       return this.handleAddBalcony(plan);
     }
 
-    // 5. Intent: Optimize for Budget
+    // 5. Intent: Auto-Furnish / Stage interior
+    if (clean.includes('furnish') || clean.includes('stage') || clean.includes('furniture') || clean.includes('interior')) {
+      return this.handleAutoFurnish(plan);
+    }
+
+    // 6. Intent: Optimize for Budget
     if (clean.includes('budget') || clean.includes('optimize') || clean.includes('cost') || clean.includes('30l') || clean.includes('cheaper')) {
       return this.handleBudgetOptimization(plan, requirements);
     }
@@ -62,6 +67,7 @@ class DesignEditService {
       status: 'unsupported',
       explanation: `I couldn't safely map "${prompt}" to an automated spatial transformation. Try instructions like:`,
       tradeoffs: [
+        '“Auto-stage all rooms with furniture.”',
         '“Make the kitchen 20% bigger and move the master bedroom to the back while keeping the parking unchanged.”',
         '“Enlarge the kitchen with attached utility.”',
         '“Move the master bedroom to the rear South-West zone.”',
@@ -273,6 +279,129 @@ class DesignEditService {
         'Reduced non-core circulation and utility margins by ~75 sq.ft.',
         'Estimated construction savings: approximately ~₹1.4L - ₹1.8L.',
         'Key living areas (Living Hall, Master Bed, Kitchen) remain fully preserved.'
+      ],
+    };
+  }
+
+  /**
+   * Handles Auto-Furnishing of the entire design
+   */
+  handleAutoFurnish(plan) {
+    import('./staging.js').then();
+    const { StagingServiceInstance } = require ? {} : {};
+    // Synchronously generate staged plan using StagingService logic
+    const mutated = structuredClone(plan);
+    const affected = [];
+
+    mutated.floors.forEach(floor => {
+      let floorFurn = [];
+      floor.rooms.forEach(room => {
+        affected.push(room.id);
+        const rx = room.x;
+        const ry = room.y;
+        const rw = room.width;
+        const rh = room.height;
+
+        let roomFurn = [];
+        if (room.type === 'master_bedroom' || room.type === 'bedroom' || room.type === 'guest_bedroom') {
+          const isMaster = room.type === 'master_bedroom';
+          roomFurn.push({
+            id: generateId('furn'),
+            type: isMaster ? 'bed_king' : 'bed_queen',
+            label: isMaster ? 'King Bed & Pillows' : 'Queen Bed',
+            roomId: room.id,
+            x: Number((rx + Math.max(0.8, (rw - (isMaster ? 6.5 : 5.0)) / 2)).toFixed(2)),
+            y: Number((ry + 0.5).toFixed(2)),
+            width: isMaster ? 6.5 : 5.0,
+            length: 6.5,
+            height: 2.8,
+            rotation: 0,
+          });
+          if (rw >= 11) {
+            roomFurn.push({
+              id: generateId('furn'),
+              type: 'nightstand',
+              label: 'Nightstand Table',
+              roomId: room.id,
+              x: Number((rx + 0.5).toFixed(2)),
+              y: Number((ry + 0.5).toFixed(2)),
+              width: 1.5,
+              length: 1.5,
+              height: 2.0,
+              rotation: 0,
+            });
+          }
+        } else if (room.type === 'living') {
+          roomFurn.push({
+            id: generateId('furn'),
+            type: rw >= 14 ? 'sofa_lshape' : 'sofa_3seater',
+            label: rw >= 14 ? 'L-Shape Sectional Sofa' : '3-Seater Sofa Couch',
+            roomId: room.id,
+            x: Number((rx + 1.0).toFixed(2)),
+            y: Number((ry + 1.0).toFixed(2)),
+            width: rw >= 14 ? 8.0 : 7.0,
+            length: rw >= 14 ? 6.5 : 3.0,
+            height: 2.8,
+            rotation: 0,
+          });
+          roomFurn.push({
+            id: generateId('furn'),
+            type: 'coffee_table',
+            label: 'Coffee Table',
+            roomId: room.id,
+            x: Number((rx + 3.5).toFixed(2)),
+            y: Number((ry + 4.0).toFixed(2)),
+            width: 3.5,
+            length: 2.0,
+            height: 1.5,
+            rotation: 0,
+          });
+        } else if (room.type === 'kitchen') {
+          roomFurn.push({
+            id: generateId('furn'),
+            type: 'kitchen_counter_l',
+            label: 'L-Shape Countertop & Sink',
+            roomId: room.id,
+            x: Number((rx + 0.5).toFixed(2)),
+            y: Number((ry + 0.5).toFixed(2)),
+            width: 7.0,
+            length: 5.0,
+            height: 2.8,
+            rotation: 0,
+          });
+        } else if (room.type === 'dining') {
+          roomFurn.push({
+            id: generateId('furn'),
+            type: 'dining_6seater',
+            label: '6-Seater Dining Set',
+            roomId: room.id,
+            x: Number((rx + (rw - 5.5) / 2).toFixed(2)),
+            y: Number((ry + (rh - 3.5) / 2).toFixed(2)),
+            width: 5.5,
+            length: 3.5,
+            height: 2.5,
+            rotation: 0,
+          });
+        }
+
+        room.furniture = roomFurn;
+        floorFurn = [...floorFurn, ...roomFurn];
+      });
+      floor.furniture = floorFurn;
+    });
+
+    return {
+      status: 'ready',
+      mutation: {
+        newPlan: mutated,
+        affectedRoomIds: affected,
+        lockedRoomIds: [],
+      },
+      explanation: 'Auto-staged standard architectural furniture across all rooms in the floor plan.',
+      tradeoffs: [
+        'Placed standard beds and nightstands in bedrooms.',
+        'Staged living room with sectional sofa and coffee table.',
+        'Positioned kitchen countertop and dining sets according to circulation clearances.',
       ],
     };
   }
