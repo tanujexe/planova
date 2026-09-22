@@ -72,8 +72,9 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        display: ['Plus Jakarta Sans', 'Outfit', 'Inter', 'sans-serif'],
-        mono: ['Inter', 'system-ui', 'monospace'],
+        serif: ['"Playfair Display"', 'Georgia', 'Cambria', 'serif'],
+        display: ['"Playfair Display"', 'Plus Jakarta Sans', 'serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       boxShadow: {
         'subtle': '0 1px 3px 0 rgba(30, 38, 31, 0.05), 0 1px 2px -1px rgba(30, 38, 31, 0.05)',

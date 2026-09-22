@@ -1,232 +1,156 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
-  Compass, 
-  ArrowRight, 
+  Building2, 
   ArrowLeft, 
   Sparkles, 
-  Check, 
+  CheckCircle2, 
   Layers, 
-  Ruler, 
-  Home,
-  CheckCircle2
+  Compass,
+  Ruler
 } from 'lucide-react';
-import { PlotStep } from '../components/wizard/PlotStep.jsx';
-import { RequirementsStep } from '../components/wizard/RequirementsStep.jsx';
-import { FeasibilityModal } from '../components/wizard/FeasibilityModal.jsx';
-import { checkBriefFeasibility } from '../services/feasibility.js';
+import { RoomCatalogBuilder } from '../components/wizard/RoomCatalogBuilder.jsx';
+import { PlaceRoomsWorkspace } from '../components/design/PlaceRoomsWorkspace.jsx';
 import { useProjectStore } from '../store/useProjectStore.js';
+import { GenerationService } from '../services/generation.js';
 
 export const NewProjectPage = () => {
   const navigate = useNavigate();
-  const { createProject } = useProjectStore();
+  const { createProject, saveActiveProject } = useProjectStore();
 
-  const [step, setStep] = useState(1);
-  const [errors, setErrors] = useState({});
-  const [feasibilityResult, setFeasibilityResult] = useState(null);
-  const [isFeasibilityModalOpen, setIsFeasibilityModalOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1); // 1: RoomCatalogBuilder, 2: PlaceRoomsWorkspace
+  const [projectDataState, setProjectDataState] = useState(null);
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [progressStage, setProgressStage] = useState('');
 
-  const [formData, setFormData] = useState({
-    name: '',
-    clientName: '',
-    location: 'Bhopal, Madhya Pradesh',
-    plot: {
-      width: 30,
-      length: 50,
-      unit: 'ft',
-      floors: 2,
-      roadSide: 'north',
-      facing: 'north',
-      setbacks: { front: 3, rear: 3, left: 2, right: 2 },
-    },
-    requirements: {
-      bhk: 3,
-      bathrooms: 2,
-      attachedBathrooms: 1,
-      rooms: [
-        { type: 'pooja', count: 1 },
-        { type: 'utility', count: 1 },
-        { type: 'balcony', count: 1 },
-      ],
-      parking: { cars: 1, twoWheelers: 1 },
-      ventilation: 'high',
-      vastu: 'basic',
-      budgetInr: 3500000,
-      quality: 'standard',
-    },
-  });
+  // Step 1 -> Step 2 transition
+  const handleRoomCatalogContinue = (projectData) => {
+    setProjectDataState(projectData);
+    setCurrentStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-  const handleFieldChange = (path, value) => {
-    setFormData((prev) => {
-      const next = structuredClone(prev);
-      const parts = path.split('.');
-      let current = next;
-      for (let i = 0; i < parts.length - 1; i++) {
-        current = current[parts[i]];
-      }
-      current[parts[parts.length - 1]] = value;
-      return next;
-    });
+  // Step 2 -> Step 3 (Furnish & Render)
+  const handleCompleteWorkspace = async (workspaceData) => {
+    setIsBuilding(true);
+    setProgressStage('Initializing architectural spatial boundaries...');
 
-    // Clear error for that field
-    if (errors[path] || errors[parts[0]]) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next[path];
-        return next;
-      });
+    try {
+      const finalProjectData = {
+        ...(projectDataState || {}),
+        plot: workspaceData.plot || projectDataState?.plot || { width: 30, length: 50, floors: 2 },
+        requirements: {
+          ...(projectDataState?.requirements || { bhk: 3, budgetInr: 3500000 }),
+          rooms: (workspaceData.placedRooms || []).map((r) => ({
+            type: r.typeId || r.type || 'bedroom',
+            count: 1,
+            size: r.size || 'M',
+            x: r.x,
+            y: r.y,
+            width: r.width,
+            height: r.height,
+          })),
+        },
+      };
+
+      // 1. Create project in repository & store
+      const newProjectId = createProject(finalProjectData);
+
+      // 2. Deterministically generate the 3 concepts (Balanced, Open Living, Vastu Priority)
+      setProgressStage('Generating constraint-validated layouts with Vastu...');
+      const { options, defaultDesign } = await GenerationService.generate(
+        { plot: finalProjectData.plot, requirements: finalProjectData.requirements },
+        (stageIdx) => {
+          if (stageIdx === 1) setProgressStage('Allocating circulation and room envelopes...');
+          if (stageIdx === 2) setProgressStage('Aligning Vastu quadrants and openings...');
+          if (stageIdx === 3) setProgressStage('Finalizing 3D massing and preliminary BOQ...');
+        }
+      );
+
+      // 3. Save generated concepts to the project
+      const updatedProject = {
+        ...finalProjectData,
+        id: newProjectId,
+        designOptions: options,
+        selectedOptionId: options[0].id,
+        design: defaultDesign,
+      };
+
+      saveActiveProject(updatedProject);
+
+      // 4. Navigate directly to the new project studio
+      navigate(`/projects/${newProjectId}`);
+    } catch (err) {
+      console.error('Error generating project:', err);
+      setIsBuilding(false);
     }
   };
 
-  const validateStep1 = () => {
-    const errs = {};
-    if (!formData.name.trim()) {
-      errs.name = 'Please provide a project name';
-    }
-    if (!formData.plot.width || formData.plot.width <= 0) {
-      errs['plot.width'] = 'Width must be greater than 0';
-    }
-    if (!formData.plot.length || formData.plot.length <= 0) {
-      errs['plot.length'] = 'Length must be greater than 0';
-    }
+  // Loading Overlay
+  if (isBuilding) {
+    return (
+      <div className="flex-1 bg-[#F7F5F0] py-16 px-4 flex items-center justify-center">
+        <div className="bg-white rounded-3xl border border-[#EAE6DF] shadow-xl p-16 flex flex-col items-center justify-center text-center space-y-4 max-w-lg w-full">
+          <div className="w-16 h-16 rounded-full bg-[#FAF8F5] border border-[#EAE6DF] flex items-center justify-center text-neutral-950 shadow-sm animate-spin">
+            <Compass className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="font-serif text-2xl font-bold text-neutral-950">
+              Building Your Architectural Home...
+            </h3>
+            <p className="text-xs text-neutral-500 font-mono">
+              {progressStage}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
+  // Step 2: The Moveable PlaceRoomsWorkspace matching user's screenshots
+  if (currentStep === 2) {
+    return (
+      <PlaceRoomsWorkspace
+        initialPlot={projectDataState?.plot || { width: 30, length: 50, floors: 2, facing: 'north' }}
+        initialRooms={projectDataState?.requirements?.rooms || []}
+        onBackToRoomList={() => setCurrentStep(1)}
+        onCompleteToResults={handleCompleteWorkspace}
+      />
+    );
+  }
 
-  const handleNext = () => {
-    if (step === 1) {
-      if (validateStep1()) {
-        setStep(2);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    } else if (step === 2) {
-      // Evaluate feasibility
-      const check = checkBriefFeasibility(formData.plot, formData.requirements);
-      setFeasibilityResult(check);
-
-      if (!check.isFeasible) {
-        setIsFeasibilityModalOpen(true);
-      } else {
-        submitProject();
-      }
-    }
-  };
-
-  const submitProject = () => {
-    const projectId = createProject(formData);
-    navigate(`/projects/${projectId}`);
-  };
-
+  // Step 1: The RoomCatalogBuilder
   return (
-    <div className="flex-1 bg-blueprint-grid py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div className="flex-1 bg-[#F7F5F0] py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1550px] mx-auto space-y-6">
         
-        {/* Wizard Progress & Breadcrumb */}
-        <div className="bg-white p-5 rounded-2xl border border-sand-300 shadow-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Top Header & Breadcrumb */}
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-sage-500 text-white flex items-center justify-center font-display font-bold shadow-subtle">
-              <Compass className="w-5 h-5" />
-            </div>
+            <Link
+              to="/"
+              className="w-9 h-9 rounded-xl bg-white hover:bg-[#F5F2EC] border border-[#DDD7CD] flex items-center justify-center text-neutral-700 hover:text-neutral-950 transition-colors shadow-2xs"
+              title="Back to Studio"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-ink-muted">
-                Step {step} of 2
-              </span>
-              <h1 className="font-display text-lg font-bold text-ink">
-                {step === 1 ? 'Plot Specification & Orientation' : 'Indian Residential Brief'}
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold text-neutral-950">
+                Design Your Home
               </h1>
+              <p className="text-xs text-neutral-500">
+                Step 1: Select your rooms, customize their sizes (S/M/L), and decide your plot area.
+              </p>
             </div>
           </div>
 
-          {/* Stepper Tabs */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => step === 2 && setStep(1)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                step === 1
-                  ? 'bg-sage-100 text-sage-900 border border-sage-300'
-                  : 'bg-sand-100 text-ink-muted hover:text-ink'
-              }`}
-            >
-              <Ruler className="w-3.5 h-3.5" />
-              <span>1. Plot & Site</span>
-            </button>
-            <div className="h-4 w-px bg-sand-300" />
-            <button
-              type="button"
-              onClick={() => step === 1 && validateStep1() && setStep(2)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                step === 2
-                  ? 'bg-sage-100 text-sage-900 border border-sage-300'
-                  : 'bg-sand-100 text-ink-muted'
-              }`}
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span>2. Requirements</span>
-            </button>
+          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-neutral-500">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Step 1 of 2 • Spatial Brief</span>
           </div>
         </div>
 
-        {/* Wizard Step Content */}
-        {step === 1 ? (
-          <PlotStep
-            formData={formData}
-            errors={errors}
-            onChange={handleFieldChange}
-          />
-        ) : (
-          <RequirementsStep
-            formData={formData}
-            errors={errors}
-            onChange={handleFieldChange}
-          />
-        )}
-
-        {/* Navigation & Action Bar */}
-        <div className="bg-white p-5 rounded-2xl border border-sand-300 shadow-subtle flex items-center justify-between">
-          <div>
-            {step === 2 ? (
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-sand-100 hover:bg-sand-200 text-ink text-xs font-semibold rounded-xl border border-sand-300 transition-all"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to Plot</span>
-              </button>
-            ) : (
-              <Link
-                to="/"
-                className="text-xs text-ink-muted hover:text-ink font-semibold"
-              >
-                Cancel
-              </Link>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={handleNext}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-sage-500 hover:bg-sage-600 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-subtle hover:shadow-elevated transition-all"
-          >
-            <span>{step === 1 ? 'Continue to Requirements' : 'Generate Design Options'}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Feasibility Warning Modal */}
-        <FeasibilityModal
-          isOpen={isFeasibilityModalOpen}
-          feasibilityResult={feasibilityResult}
-          onProceedAnyway={() => {
-            setIsFeasibilityModalOpen(false);
-            submitProject();
-          }}
-          onEditRequirements={() => {
-            setIsFeasibilityModalOpen(false);
-          }}
-        />
+        <RoomCatalogBuilder onBuildProject={handleRoomCatalogContinue} />
 
       </div>
     </div>
