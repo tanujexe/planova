@@ -18,7 +18,7 @@ import { Fallback2DView } from '../components/visualization/Fallback2DView.jsx';
 export const VisualizationPage = () => {
   const { projectId } = useParams();
   const { activeProject, loadProject, isLoading } = useProjectStore();
-  const [visibleFloorLevel, setVisibleFloorLevel] = useState('all');
+  const [visibleFloorLevel, setVisibleFloorLevel] = useState(0);
   const [webGlFailed, setWebGlFailed] = useState(false);
 
   useEffect(() => {
@@ -49,36 +49,47 @@ export const VisualizationPage = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-linen overflow-hidden h-[calc(100vh-4rem)] min-h-[600px]">
+    <div className="flex-1 min-h-0 flex flex-col bg-linen overflow-hidden h-full w-full">
 
       {/* Sub-header Toolbar */}
-      <div className="bg-white border-b border-sand-300 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10">
+      <div className="bg-white/95 backdrop-blur-md border-b border-[#EAE6DF] px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10">
 
         {/* Left: Floor Level Isolation */}
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-ink-muted hidden sm:inline">View Floor:</span>
-          <div className="flex items-center gap-1 bg-sand-100 p-1 rounded-xl border border-sand-200">
+          <span className="text-xs font-semibold text-neutral-500 hidden sm:inline">View Floor:</span>
+          <div className="flex items-center gap-1 bg-[#F5F2EC] p-1 rounded-xl border border-[#EAE6DF]">
             <button
-              onClick={() => setVisibleFloorLevel('all')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${visibleFloorLevel === 'all'
-                  ? 'bg-terracotta-500 text-white shadow-subtle'
-                  : 'text-ink-muted hover:text-ink'
+              onClick={() => setVisibleFloorLevel(0)}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${visibleFloorLevel === 0
+                  ? 'bg-neutral-950 text-white shadow-xs font-bold'
+                  : 'text-neutral-600 hover:text-neutral-950 hover:bg-white/60'
                 }`}
             >
-              All Floors (G+1)
+              Ground (G)
             </button>
-            {plan.floors?.map((f) => (
+            {plan.floors?.filter(f => f.level !== 0).map((f) => (
               <button
                 key={f.level}
                 onClick={() => setVisibleFloorLevel(f.level)}
                 className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${visibleFloorLevel === f.level
-                    ? 'bg-terracotta-500 text-white shadow-subtle'
-                    : 'text-ink-muted hover:text-ink'
+                    ? 'bg-neutral-950 text-white shadow-xs font-bold'
+                    : 'text-neutral-600 hover:text-neutral-950 hover:bg-white/60'
                   }`}
               >
                 {f.label || `Level ${f.level}`}
               </button>
             ))}
+            {plan.floors?.length > 1 && (
+              <button
+                onClick={() => setVisibleFloorLevel('all')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${visibleFloorLevel === 'all'
+                    ? 'bg-neutral-950 text-white shadow-xs font-bold'
+                    : 'text-neutral-600 hover:text-neutral-950 hover:bg-white/60'
+                  }`}
+              >
+                All Floors (3D Stack)
+              </button>
+            )}
           </div>
         </div>
 
@@ -86,24 +97,24 @@ export const VisualizationPage = () => {
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => setWebGlFailed(!webGlFailed)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sand-100 hover:bg-sand-200 text-ink rounded-lg text-xs font-semibold border border-sand-300 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#F5F2EC] text-neutral-800 rounded-xl text-xs font-semibold border border-[#DDD8CE] transition-colors"
             title="Toggle between 3D WebGL and 2D Safe Mode"
           >
-            <Eye className="w-3.5 h-3.5 text-terracotta-600" />
+            <Eye className="w-3.5 h-3.5 text-neutral-600" />
             <span>{webGlFailed ? 'Switch to 3D View' : '2D Fallback Mode'}</span>
           </button>
 
           <Link
             to={`/projects/${project.id}/design`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sand-100 hover:bg-sand-200 text-ink rounded-lg text-xs font-semibold border border-sand-300 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#F5F2EC] text-neutral-800 rounded-xl text-xs font-semibold border border-[#DDD8CE] transition-colors"
           >
-            <Layout className="w-3.5 h-3.5 text-terracotta-600" />
+            <Layout className="w-3.5 h-3.5 text-neutral-600" />
             <span className="hidden sm:inline">Edit in 2D</span>
           </Link>
 
           <Link
             to={`/projects/${project.id}/cost`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-terracotta-500 hover:bg-terracotta-600 text-white rounded-lg text-xs font-semibold shadow-subtle transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-all"
           >
             <IndianRupee className="w-3.5 h-3.5" />
             <span>Check Cost</span>
@@ -112,7 +123,7 @@ export const VisualizationPage = () => {
       </div>
 
       {/* 3D Viewport or Fallback */}
-      <div className="flex-1 relative overflow-hidden h-[calc(100vh-7.5rem)] min-h-[650px] w-full">
+      <div className="flex-1 min-h-0 relative overflow-hidden w-full h-full">
         {webGlFailed ? (
           <Fallback2DView floorPlan={plan} projectId={project.id} />
         ) : (

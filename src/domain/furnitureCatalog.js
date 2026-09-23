@@ -223,6 +223,96 @@ export const FURNITURE_CATALOG = [
     description: 'Walk-in shower enclosure with drain',
   },
 
+  // --- Luxury Bathroom ---
+  {
+    type: 'bathtub',
+    label: 'Freestanding Bathtub',
+    category: FURNITURE_CATEGORIES.BATHROOM,
+    width: 5.5,
+    length: 2.8,
+    height: 2.2,
+    roomTypes: ['bathroom', 'attached_bathroom', 'master_bedroom'],
+    description: 'Oval porcelain freestanding soaking bathtub',
+  },
+
+  // --- Kitchen Additions ---
+  {
+    type: 'kitchen_island',
+    label: 'Kitchen Island & Stools',
+    category: FURNITURE_CATEGORIES.KITCHEN,
+    width: 6.0,
+    length: 3.0,
+    height: 3.0,
+    roomTypes: ['kitchen', 'dining', 'living'],
+    description: 'Marble waterfall kitchen island with 3 breakfast bar stools',
+  },
+
+  // --- Decor & Rugs ---
+  {
+    type: 'rug_area',
+    label: 'Living Room Area Rug',
+    category: FURNITURE_CATEGORIES.LIVING,
+    width: 9.0,
+    length: 6.5,
+    height: 0.05,
+    roomTypes: ['living', 'dining'],
+    description: 'Woven geometric plush floor rug',
+  },
+  {
+    type: 'rug_bedroom',
+    label: 'Bedside Area Rug',
+    category: FURNITURE_CATEGORIES.BEDROOM,
+    width: 7.5,
+    length: 5.5,
+    height: 0.05,
+    roomTypes: ['master_bedroom', 'bedroom'],
+    description: 'Cozy bedroom perimeter area carpet',
+  },
+  {
+    type: 'plant_pot',
+    label: 'Potted Fiddle Leaf Plant',
+    category: FURNITURE_CATEGORIES.LIVING,
+    width: 1.8,
+    length: 1.8,
+    height: 4.5,
+    roomTypes: ['living', 'bedroom', 'master_bedroom', 'foyer', 'balcony', 'dining'],
+    description: 'Lush green indoor architectural planter',
+  },
+
+  // --- Outdoor & Balcony ---
+  {
+    type: 'patio_set',
+    label: 'Outdoor Patio Lounge Set',
+    category: FURNITURE_CATEGORIES.LIVING,
+    width: 6.0,
+    length: 4.5,
+    height: 2.5,
+    roomTypes: ['balcony', 'foyer', 'living'],
+    description: 'Weatherproof wicker patio sofas and coffee table',
+  },
+
+  // --- Parking & Garage Vehicles ---
+  {
+    type: 'car_sedan',
+    label: 'White Luxury Sedan',
+    category: FURNITURE_CATEGORIES.ENTRY_POOJA,
+    width: 6.0,
+    length: 14.5,
+    height: 4.8,
+    roomTypes: ['parking'],
+    description: 'Full-size passenger sedan car in parking bay',
+  },
+  {
+    type: 'car_suv',
+    label: 'Metallic SUV',
+    category: FURNITURE_CATEGORIES.ENTRY_POOJA,
+    width: 6.5,
+    length: 15.0,
+    height: 5.5,
+    roomTypes: ['parking'],
+    description: 'Compact/mid-size SUV vehicle in parking bay',
+  },
+
   // --- Pooja & Entry ---
   {
     type: 'pooja_mandir',
