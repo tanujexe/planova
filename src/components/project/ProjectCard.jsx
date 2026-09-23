@@ -7,10 +7,9 @@ import {
   Copy, 
   Trash2, 
   ArrowUpRight, 
-  Compass, 
-  IndianRupee,
-  Layers,
-  Sparkles
+  Sparkles,
+  Bed,
+  Bath
 } from 'lucide-react';
 import { formatInrShorthand } from '../../lib/currency.js';
 import { formatDimension } from '../../lib/units.js';
@@ -34,24 +33,24 @@ export const ProjectCard = ({
   const floorLabel = floors === 1 ? 'Ground Only' : floors === 2 ? 'G+1 Floor' : 'G+2 Floor';
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-sand-300 hover:border-sage-400 p-6 shadow-subtle hover:shadow-elevated transition-all flex flex-col justify-between">
+    <div className="group relative bg-white rounded-2xl border border-sand-300 hover:border-sand-400 p-6 shadow-subtle hover:shadow-elevated transition-all flex flex-col justify-between">
       
       {/* Top Section */}
       <div>
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase bg-sage-100 text-sage-800 px-2 py-0.5 rounded font-semibold border border-sage-200">
+              <span className="text-[10px] font-mono uppercase bg-sand-100 text-ink px-2 py-0.5 rounded font-semibold border border-sand-200">
                 {bhk} BHK • {floorLabel}
               </span>
               {project.id === 'sharma-residence' && (
                 <span className="text-[10px] font-medium bg-sand-200 text-ink px-1.5 py-0.5 rounded flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5 text-sage-700" />
-                  Seed Demo
+                  <Sparkles className="w-2.5 h-2.5 text-terracotta" />
+                  Demo
                 </span>
               )}
             </div>
-            <h3 className="font-display text-lg font-bold text-ink group-hover:text-sage-700 transition-colors pt-1">
+            <h3 className="font-serif text-lg font-bold text-ink group-hover:text-dark transition-colors pt-1">
               <Link to={`/projects/${project.id}`} className="hover:underline focus:outline-none">
                 {project.name}
               </Link>
@@ -80,7 +79,7 @@ export const ProjectCard = ({
                     onClick={() => setMenuOpen(false)}
                     className="w-full px-3 py-1.5 text-xs text-ink hover:bg-sand-100 flex items-center gap-2"
                   >
-                    <ArrowUpRight className="w-3.5 h-3.5 text-sage-600" />
+                    <ArrowUpRight className="w-3.5 h-3.5 text-ink" />
                     <span>Open</span>
                   </Link>
                   <button
@@ -109,7 +108,7 @@ export const ProjectCard = ({
                       setMenuOpen(false);
                       onDelete(project);
                     }}
-                    className="w-full px-3 py-1.5 text-xs text-terracotta hover:bg-terracotta-light/30 flex items-center gap-2 text-left"
+                    className="w-full px-3 py-1.5 text-xs text-terracotta hover:bg-terracotta-50 flex items-center gap-2 text-left"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Delete</span>
@@ -128,7 +127,7 @@ export const ProjectCard = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="bg-linen px-2 py-0.5 rounded border border-sand-200 text-ink font-medium">
+            <span className="bg-sand-50 px-2 py-0.5 rounded border border-sand-200 text-ink font-medium">
               {formatDimension(plotW, unit)} × {formatDimension(plotL, unit)}
             </span>
             <span className="text-sand-400">•</span>
@@ -138,26 +137,26 @@ export const ProjectCard = ({
 
         {/* Mini Floor Plan Blueprint Thumbnail */}
         <div className="h-28 bg-linen rounded-xl border border-sand-200 p-2.5 flex items-center justify-center relative overflow-hidden mb-5 bg-blueprint-grid">
-          <div className="w-full h-full border border-dashed border-sage-300 rounded-lg flex flex-col justify-between p-2 bg-white/60">
+          <div className="w-full h-full border border-dashed border-sand-400 rounded-lg flex flex-col justify-between p-2 bg-white/70">
             <div className="flex justify-between items-center text-[10px] text-ink-muted font-medium">
               <span>{plotW}&apos;</span>
-              <span className="uppercase text-sage-700 font-bold text-[9px]">Road Side ({project.plot?.roadSide || 'N'})</span>
+              <span className="uppercase text-ink font-bold text-[9px]">Road Side ({project.plot?.roadSide || 'N'})</span>
               <span>{plotW}&apos;</span>
             </div>
             <div className="grid grid-cols-3 gap-1 h-12">
-              <div className="bg-sage-100 rounded border border-sage-200 flex items-center justify-center text-[8px] font-semibold text-sage-800">
+              <div className="bg-sand-100 rounded border border-sand-200 flex items-center justify-center text-[8px] font-semibold text-ink">
                 Bed 1
               </div>
-              <div className="bg-sand-100 rounded border border-sand-200 flex items-center justify-center text-[8px] font-semibold text-ink-muted">
+              <div className="bg-white rounded border border-sand-200 flex items-center justify-center text-[8px] font-semibold text-ink-muted">
                 Living
               </div>
-              <div className="bg-terracotta-light/60 rounded border border-terracotta/20 flex items-center justify-center text-[8px] font-semibold text-terracotta-dark">
+              <div className="bg-sand-50 rounded border border-sand-200 flex items-center justify-center text-[8px] font-semibold text-ink">
                 Kitchen
               </div>
             </div>
             <div className="flex justify-between items-center text-[9px] text-ink-muted font-medium">
               <span>Length: {plotL}&apos;</span>
-              <span>~{Math.round(area)} sq.ft</span>
+              <span className="font-bold text-ink">~{Math.round(area)} sq.ft</span>
             </div>
           </div>
         </div>
@@ -167,19 +166,20 @@ export const ProjectCard = ({
       <div className="pt-4 border-t border-sand-200 flex items-center justify-between text-xs">
         <div>
           <span className="text-[10px] text-ink-muted block uppercase font-medium">Target Budget</span>
-          <span className="font-display font-bold text-ink text-sm flex items-center">
+          <span className="font-serif font-bold text-ink text-sm flex items-center">
             {formatInrShorthand(budget)}
           </span>
         </div>
 
         <Link
           to={`/projects/${project.id}`}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-sage-700 group-hover:text-sage-800 transition-colors"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-ink hover:text-dark transition-colors"
         >
-          <span>Open Plan</span>
+          <span>Open Studio</span>
           <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </Link>
       </div>
     </div>
   );
 };
+

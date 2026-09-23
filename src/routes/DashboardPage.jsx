@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  PlusCircle, 
+  Plus, 
   Sparkles, 
-  Compass, 
   Layers, 
   RotateCcw,
-  CheckCircle2
+  CheckCircle2,
+  Compass
 } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore.js';
 import { ProjectCard } from '../components/project/ProjectCard.jsx';
@@ -67,22 +67,26 @@ export const DashboardPage = () => {
   };
 
   return (
-    <div className="flex-1 bg-blueprint-grid py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="flex-1 bg-linen py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Toast Notification */}
         {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 bg-ink text-white px-4 py-2.5 rounded-xl shadow-elevated border border-sand-400/20 text-xs flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
-            <CheckCircle2 className="w-4 h-4 text-sage-400 shrink-0" />
+          <div className="fixed bottom-6 right-20 z-50 bg-dark text-white px-4 py-2.5 rounded-xl shadow-elevated border border-sand-400/20 text-xs flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{toastMessage}</span>
           </div>
         )}
 
         {/* Welcome Hero Banner */}
-        <div className="bg-white rounded-2xl p-8 border border-sand-300 shadow-elevated relative overflow-hidden">
+        <div className="bg-white rounded-2xl p-8 sm:p-10 border border-sand-300 shadow-subtle relative overflow-hidden">
           <div className="max-w-2xl relative z-10">
-            <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-ink mb-3">
-              Describe your plot. Planova designs your Indian home.
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sand-100 text-ink rounded-lg text-xs font-semibold mb-4 border border-sand-200">
+              <Sparkles className="w-3.5 h-3.5 text-terracotta" />
+              <span>Architectural AI Studio</span>
+            </div>
+            <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-ink mb-3 leading-tight">
+              Design, explore, and draft your residential dreams.
             </h1>
             <p className="text-ink-muted text-sm sm:text-base leading-relaxed mb-6">
               Generate structured, editable 2D floor plans, explore conceptual 3D massing, calculate approximate ₹/sq.ft construction costs, and generate preliminary BOQs tailored for Indian plots and living requirements.
@@ -90,50 +94,50 @@ export const DashboardPage = () => {
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 to="/projects/new"
-                className="inline-flex items-center gap-2 px-5 py-3 bg-sage-500 hover:bg-sage-600 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-subtle hover:shadow-elevated"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-dark hover:bg-dark-hover text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-subtle hover:shadow-elevated"
               >
-                <PlusCircle className="w-4 h-4" />
-                Create New Project
+                <Plus className="w-4 h-4" />
+                <span>Create New Design</span>
               </Link>
               <button
                 onClick={() => {
                   resetDemoProject();
                   navigate('/projects/sharma-residence');
                 }}
-                className="inline-flex items-center gap-2 px-5 py-3 bg-sand-200 hover:bg-sand-300 text-ink rounded-xl text-xs sm:text-sm font-semibold transition-all"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-white hover:bg-sand-100 text-ink border border-sand-300 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-subtle"
               >
-                <Layers className="w-4 h-4 text-sage-700" />
-                Explore Sharma Residence (Demo)
+                <Layers className="w-4 h-4 text-ink-muted" />
+                <span>Explore Sharma Residence (Demo)</span>
               </button>
             </div>
           </div>
 
           {/* Decorative architectural grid element */}
-          <div className="hidden md:block absolute right-8 top-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
-            <Compass className="w-64 h-64 text-sage-500 stroke-[1]" />
+          <div className="hidden md:block absolute right-6 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none">
+            <Compass className="w-64 h-64 text-ink stroke-[1]" />
           </div>
         </div>
 
         {/* Projects Section Header */}
         <div className="flex items-center justify-between pt-2">
           <div>
-            <h2 className="font-display text-2xl font-bold text-ink">Your Projects</h2>
+            <h2 className="font-serif text-2xl font-bold text-ink">My Studio Projects</h2>
             <p className="text-xs text-ink-muted">Manage your saved residential briefs and concepts</p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleSeedDemo}
-              className="text-xs font-semibold text-ink-muted hover:text-ink flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sand-100 hover:bg-sand-200 border border-sand-300 transition-colors"
+              className="text-xs font-semibold text-ink-muted hover:text-ink flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-sand-100 border border-sand-300 transition-colors shadow-subtle"
               title="Reset Sharma Residence to original demo state"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-sage-700" />
+              <RotateCcw className="w-3.5 h-3.5 text-ink-muted" />
               <span>Reset Demo</span>
             </button>
             <Link
               to="/projects/new"
-              className="text-xs font-semibold text-white bg-sage-500 hover:bg-sage-600 flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors shadow-subtle"
+              className="text-xs font-semibold text-white bg-dark hover:bg-dark-hover flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-colors shadow-subtle"
             >
-              <PlusCircle className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" />
               <span>New Project</span>
             </Link>
           </div>
@@ -178,3 +182,4 @@ export const DashboardPage = () => {
     </div>
   );
 };
+

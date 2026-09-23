@@ -4,31 +4,31 @@
 
 @layer base {
   :root {
-    --color-primary: #C08552;
-    --color-linen: #F7F2EB;
-    --color-sand: #EAE2D6;
-    --color-softgray: #EEEEEE;
-    --color-ink: #1E261F;
+    --color-primary: #18181B;
+    --color-linen: #FAF9F5;
+    --color-sand: #EBE6DC;
+    --color-ink: #141414;
+    --color-terracotta: #E0582B;
   }
 
   body {
-    background-color: #F7F2EB;
-    color: #1E261F;
-    font-feature-settings: normal;
+    background-color: #FAF9F5;
+    color: #141414;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     font-variant-numeric: normal;
   }
 
-  /* Architectural subtle grid background with warm #C08552 ochre tone */
+  /* Architectural subtle grid background */
   .bg-blueprint-grid {
-    background-size: 24px 24px;
+    background-size: 28px 28px;
     background-image: 
-      linear-gradient(to right, rgba(192, 133, 82, 0.08) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(192, 133, 82, 0.08) 1px, transparent 1px);
+      linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
   }
 
   .bg-subtle-dots {
-    background-size: 16px 16px;
-    background-image: radial-gradient(rgba(192, 133, 82, 0.18) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px);
   }
 }
 
@@ -39,14 +39,15 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #F7F2EB;
+  background: #FAF9F5;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #DFBA9D;
+  background: #DFD8CC;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #C08552;
+  background: #CFC5B4;
 }
+

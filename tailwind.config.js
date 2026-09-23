@@ -7,79 +7,89 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Updated to user's #C08552 warm architectural terracotta / ochre
-        sage: {
-          50: '#FAF4EF',
-          100: '#F5E9DF',
-          200: '#EBD3BF',
-          300: '#DFBA9D',
-          400: '#CF9E75',
-          500: '#C08552', // User Primary Color #C08552
-          600: '#AC6E3D',
-          700: '#8E552E',
-          800: '#724426',
-          900: '#4C2D1A',
-          950: '#2A170B',
-        },
-        primary: {
-          50: '#FAF4EF',
-          100: '#F5E9DF',
-          200: '#EBD3BF',
-          300: '#DFBA9D',
-          400: '#CF9E75',
-          500: '#C08552',
-          600: '#AC6E3D',
-          700: '#8E552E',
-          800: '#724426',
-          900: '#4C2D1A',
-        },
+        // Core background and surface colors from Drafted screenshot
         linen: {
-          DEFAULT: '#F7F2EB', // Warm background User Color
+          DEFAULT: '#FAF9F5', // Warm light cream background
           50: '#FFFFFF',
-          100: '#FAF7F3',
-          200: '#F7F2EB',
-          300: '#EFE6D9',
-          400: '#E7D9C7',
+          100: '#FAF9F5',
+          200: '#F5F2EA',
+          300: '#EBE6DC',
+          400: '#DFD8CC',
         },
         sand: {
-          DEFAULT: '#EAE2D6', // Sandstone Surface User Color
-          50: '#FAF8F5',
-          100: '#F5F0E9',
-          200: '#EAE2D6',
-          300: '#DCCEBC',
-          400: '#CEBAA1',
-          500: '#BF9E7E',
-        },
-        softgray: {
-          DEFAULT: '#EEEEEE', // Soft Gray User Color
-          50: '#FAFAFA',
-          100: '#F5F5F5',
-          200: '#EEEEEE',
-          300: '#E0E0E0',
-          400: '#BDBDBD',
+          DEFAULT: '#EBE6DC', // Crisp subtle warm borders & surface
+          50: '#FAF9F5',
+          100: '#F5F2EA',
+          200: '#EBE6DC',
+          300: '#DFD8CC',
+          400: '#CFC5B4',
+          500: '#B8AB96',
         },
         ink: {
-          DEFAULT: '#1E261F',
-          muted: '#4A554D',
-          light: '#768579',
-          border: '#D8DFD5',
+          DEFAULT: '#141414', // Jet black for headings & typography
+          muted: '#666666',   // Clean secondary neutral text
+          light: '#8C8C8C',
+          border: '#E8E4DC',
         },
+        // Action Dark (solid black buttons like '+ New Design' and 'Remix')
+        dark: {
+          DEFAULT: '#18181B',
+          hover: '#27272A',
+          subtle: '#2D2D30',
+        },
+        // Warm terracotta / burnt orange accent (avatar, active highlights)
         terracotta: {
-          DEFAULT: '#C08552',
-          light: '#FAF4EF',
-          dark: '#8E552E',
+          DEFAULT: '#E0582B',
+          light: '#FAF3F0',
+          dark: '#B83E16',
+          50: '#FAF3F0',
+          100: '#F6E4DE',
+          200: '#EEBFB0',
+          500: '#E0582B',
+          600: '#C9481D',
+          700: '#A73614',
         },
+        // Backward-compatible sage palette mapped to warm architectural tones
+        sage: {
+          50: '#FAF9F5',
+          100: '#F5F2EA',
+          200: '#EBE6DC',
+          300: '#DFD8CC',
+          400: '#CFC5B4',
+          500: '#18181B',
+          600: '#27272A',
+          700: '#141414',
+          800: '#141414',
+          900: '#000000',
+        },
+        primary: {
+          50: '#FAF9F5',
+          100: '#F5F2EA',
+          200: '#EBE6DC',
+          300: '#DFD8CC',
+          400: '#E0582B',
+          500: '#18181B',
+          600: '#27272A',
+          700: '#141414',
+          800: '#141414',
+          900: '#000000',
+        },
+        gold: {
+          badge: '#C89B3C',
+          bg: '#FAF5EA',
+        }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        display: ['Plus Jakarta Sans', 'Outfit', 'Inter', 'sans-serif'],
-        mono: ['Inter', 'system-ui', 'monospace'],
+        serif: ['"DM Serif Display"', '"Newsreader"', '"Playfair Display"', 'Georgia', 'serif'],
+        display: ['"DM Serif Display"', '"Newsreader"', '"Playfair Display"', 'Georgia', 'serif'],
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'Inter', 'system-ui', 'monospace'],
       },
       boxShadow: {
-        'subtle': '0 1px 3px 0 rgba(30, 38, 31, 0.05), 0 1px 2px -1px rgba(30, 38, 31, 0.05)',
-        'elevated': '0 4px 20px -2px rgba(30, 38, 31, 0.08), 0 2px 6px -2px rgba(30, 38, 31, 0.04)',
-        'card': '0 2px 12px 0 rgba(192, 133, 82, 0.08)',
-        'glow': '0 0 20px rgba(192, 133, 82, 0.25)',
+        'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04)',
+        'elevated': '0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -2px rgba(0, 0, 0, 0.03)',
+        'card': '0 2px 12px 0 rgba(0, 0, 0, 0.05)',
+        'glow': '0 0 20px rgba(224, 88, 43, 0.2)',
       },
     },
   },
