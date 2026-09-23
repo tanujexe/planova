@@ -2,9 +2,15 @@ import React, { useEffect, useRef } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-export const WalkthroughController = ({ active = true, eyeHeight = 1.6, moveSpeed = 6.0 }) => {
+export const WalkthroughController = ({ 
+  active = true, 
+  eyeHeight = 1.6, 
+  moveSpeed = 6.0,
+  targetPosition = null,
+  onTargetReached = null
+}) => {
   const { camera, gl } = useThree();
-  const keys = useRef({ forward: false, backward: false, left: false, right: false });
+  const keys = useRef({ forward: false, backward: false, left: false, right: false, sprint: false });
   const isDragging = useRef(false);
   const previousMouse = useRef({ x: 0, y: 0 });
   const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'));
@@ -13,8 +19,8 @@ export const WalkthroughController = ({ active = true, eyeHeight = 1.6, moveSpee
     if (!active) return;
 
     // Set initial walkthrough camera position if too high
-    if (camera.position.y > 4) {
-      camera.position.set(0, eyeHeight, 5);
+    if (camera.position.y > 3.5 || camera.position.y < 0.5) {
+      camera.position.set(0, eyeHeight, 6);
       camera.lookAt(0, eyeHeight, 0);
     }
 
@@ -23,6 +29,7 @@ export const WalkthroughController = ({ active = true, eyeHeight = 1.6, moveSpee
       if (['KeyS', 'ArrowDown'].includes(e.code)) keys.current.backward = true;
       if (['KeyA', 'ArrowLeft'].includes(e.code)) keys.current.left = true;
       if (['KeyD', 'ArrowRight'].includes(e.code)) keys.current.right = true;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.current.sprint = true;
     };
 
     const handleKeyUp = (e) => {
@@ -30,6 +37,7 @@ export const WalkthroughController = ({ active = true, eyeHeight = 1.6, moveSpee
       if (['KeyS', 'ArrowDown'].includes(e.code)) keys.current.backward = false;
       if (['KeyA', 'ArrowLeft'].includes(e.code)) keys.current.left = false;
       if (['KeyD', 'ArrowRight'].includes(e.code)) keys.current.right = false;
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.current.sprint = false;
     };
 
     const handleMouseDown = (e) => {
@@ -44,9 +52,9 @@ export const WalkthroughController = ({ active = true, eyeHeight = 1.6, moveSpee
       previousMouse.current = { x: e.clientX, y: e.clientY };
 
       euler.current.setFromQuaternion(camera.quaternion);
-      euler.current.y -= deltaX * 0.003;
-      euler.current.x -= deltaY * 0.003;
-      euler.current.x = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, euler.current.x));
+      euler.current.y -= deltaX * 0.0032;
+      euler.current.x -= deltaY * 0.0032;
+      euler.current.x = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, euler.current.x));
       camera.quaternion.setFromEuler(euler.current);
     };
 
@@ -69,10 +77,19 @@ export const WalkthroughController = ({ active = true, eyeHeight = 1.6, moveSpee
     };
   }, [active, camera, eyeHeight, gl]);
 
+  // Smooth Teleport when targetPosition changes
+  useEffect(() => {
+    if (active && targetPosition) {
+      camera.position.set(targetPosition[0], targetPosition[1] || eyeHeight, targetPosition[2]);
+      if (onTargetReached) onTargetReached();
+    }
+  }, [active, targetPosition, camera, eyeHeight, onTargetReached]);
+
   useFrame((_, delta) => {
     if (!active) return;
 
-    const actualSpeed = moveSpeed * delta;
+    const baseSpeed = keys.current.sprint ? moveSpeed * 1.8 : moveSpeed;
+    const actualSpeed = baseSpeed * delta;
     const moveVector = new THREE.Vector3();
 
     if (keys.current.forward) moveVector.z -= actualSpeed;
