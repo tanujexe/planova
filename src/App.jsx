@@ -12,6 +12,7 @@ import { VisualizationPage } from './routes/VisualizationPage.jsx';
 import { CostPage } from './routes/CostPage.jsx';
 import { BoqPage } from './routes/BoqPage.jsx';
 import { ExportPage } from './routes/ExportPage.jsx';
+import { DesignDetailsPage } from './routes/DesignDetailsPage.jsx';
 
 export const App = () => {
   return (
@@ -22,6 +23,8 @@ export const App = () => {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/projects/new" element={<NewProjectPage />} />
             <Route path="/projects/:projectId" element={<ProjectOverviewPage />} />
+            <Route path="/projects/:projectId/details" element={<DesignDetailsPage />} />
+            <Route path="/projects/:projectId/drafts/:draftId" element={<DesignDetailsPage />} />
             <Route path="/projects/:projectId/design" element={<WorkspacePage />} />
             <Route path="/projects/:projectId/3d" element={<VisualizationPage />} />
             <Route path="/projects/:projectId/cost" element={<CostPage />} />

@@ -1,204 +1,256 @@
-import React, { useState, useEffect } from 'react';
-import { Link, NavLink, useLocation, useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Home,
-  BookOpen,
-  Sparkles,
-  ChevronDown,
+  Building2, 
+  ChevronDown, 
+  Plus, 
+  BookOpen, 
+  Zap, 
+  Layers, 
   Layout, 
   Box, 
   IndianRupee, 
   ScrollText, 
   Download, 
-  Plus, 
-  Layers,
-  MessageSquare,
-  Compass,
-  Check
+  Check, 
+  Home,
+  Menu,
+  X
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useProjectStore } from '../../store/useProjectStore.js';
+import { LearnModal } from '../studio/LearnModal.jsx';
 
 export const AppShell = ({ children }) => {
-  const { projectId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { projects, activeProject, loadProjects, loadProject } = useProjectStore();
 
-  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
+  const [isLearnModalOpen, setIsLearnModalOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Extract projectId from location.pathname
+  const match = location.pathname.match(/^\/projects\/([a-zA-Z0-9_-]+)/);
+  const matchedId = match ? match[1] : null;
+  const currentProjectId = matchedId && matchedId !== 'new' ? matchedId : (activeProject?.id || null);
 
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
 
-  const isProjectView = Boolean(projectId && location.pathname.startsWith('/projects/'));
-  const currentProjectName = activeProject?.name || projects.find(p => p.id === projectId)?.name || 'Spano Ka Ghar';
+  useEffect(() => {
+    if (currentProjectId && (!activeProject || activeProject.id !== currentProjectId)) {
+      loadProject(currentProjectId);
+    }
+  }, [currentProjectId, activeProject, loadProject]);
+
+  // Click outside to close project dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsProjectDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const isProjectView = Boolean(currentProjectId && location.pathname.startsWith('/projects/'));
 
   const navItems = isProjectView
     ? [
-        { label: 'Overview', path: `/projects/${projectId}`, icon: Layers, end: true },
-        { label: '2D Workspace', path: `/projects/${projectId}/design`, icon: Layout },
-        { label: '3D Concept', path: `/projects/${projectId}/3d`, icon: Box },
-        { label: 'Cost & Budget', path: `/projects/${projectId}/cost`, icon: IndianRupee },
-        { label: 'BOQ', path: `/projects/${projectId}/boq`, icon: ScrollText },
-        { label: 'Export', path: `/projects/${projectId}/export`, icon: Download },
+        { label: 'My Studio', path: `/projects/${currentProjectId}`, icon: Building2, end: true },
+        { label: '2D Blueprint', path: `/projects/${currentProjectId}/design`, icon: Layout },
+        { label: '3D Walkthrough', path: `/projects/${currentProjectId}/3d`, icon: Box },
+        { label: 'Cost & Budget', path: `/projects/${currentProjectId}/cost`, icon: IndianRupee },
+        { label: 'BOQ Takeoff', path: `/projects/${currentProjectId}/boq`, icon: ScrollText },
+        { label: 'Export PDF/DXF', path: `/projects/${currentProjectId}/export`, icon: Download },
       ]
     : [];
 
+  const handleSelectProject = (projId) => {
+    setIsProjectDropdownOpen(false);
+    loadProject(projId);
+    navigate(`/projects/${projId}`);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-linen text-ink font-sans selection:bg-sand-300">
-      {/* Main Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-sand-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 gap-4">
+    <div className="min-h-screen flex flex-col bg-[#F7F5F0] text-neutral-900 font-sans selection:bg-neutral-200">
+      
+      {/* Drafted Studio Top Navigation Bar */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#EAE6DF]">
+        <div className="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 gap-3">
             
-            {/* Left: Logo & Studio Tab & Project Selector */}
-            <div className="flex items-center gap-5 sm:gap-7">
-              {/* Drafted Logo */}
-              <Link to="/" className="flex items-center gap-1.5 focus:outline-none group">
-                <span className="font-serif text-2xl sm:text-[26px] font-bold tracking-tight text-ink group-hover:text-black transition-colors">
+            {/* Left: Brand Logo & Studio Tab & Project Selector */}
+            <div className="flex items-center gap-4 sm:gap-6">
+              
+              {/* Drafted Logo (Matching Screenshots Serif Branding) */}
+              <Link 
+                to={currentProjectId ? `/projects/${currentProjectId}` : "/"} 
+                className="flex items-center gap-2 group focus:outline-hidden"
+              >
+                <span className="font-serif text-2xl font-bold tracking-tight text-neutral-950">
                   Drafted
                 </span>
               </Link>
 
-              {/* My Studio Active Tab */}
+              {/* Thin Vertical Divider */}
+              <div className="h-6 w-px bg-[#E5E0D8] hidden sm:block" />
+
+              {/* My Studio Tab Button */}
               <Link
-                to="/"
+                to={currentProjectId ? `/projects/${currentProjectId}` : "/"}
                 className={clsx(
-                  "relative flex items-center gap-2 py-5 text-sm font-semibold transition-colors",
-                  location.pathname === '/' || !isProjectView
-                    ? "text-ink after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-ink"
-                    : "text-ink-muted hover:text-ink"
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors",
+                  location.pathname === `/projects/${currentProjectId}` || location.pathname === '/'
+                    ? "text-neutral-950 bg-[#F5F2EC]"
+                    : "text-neutral-600 hover:text-neutral-950 hover:bg-[#FAF8F5]"
                 )}
               >
-                <Home className="w-4 h-4 stroke-[2]" />
+                <Building2 className="w-3.5 h-3.5 stroke-[2.2]" />
                 <span>My Studio</span>
               </Link>
 
-              {/* Subtle Divider */}
-              <div className="hidden md:block h-6 w-px bg-sand-300" />
-
-              {/* Project Selector */}
-              <div className="relative hidden md:block">
+              {/* Project Selector Dropdown matching "PROJECT: dfgg ▾" in Screenshot 1 & 2 */}
+              <div className="relative" ref={dropdownRef}>
                 <button
-                  type="button"
-                  onClick={() => setProjectMenuOpen(!projectMenuOpen)}
-                  className="flex flex-col text-left py-1 px-2 rounded-lg hover:bg-sand-100 transition-colors focus:outline-none group"
+                  onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-[#F5F2EC] transition-colors border border-transparent hover:border-[#EAE6DF] text-left"
                 >
-                  <span className="text-[10px] tracking-wider uppercase font-mono text-ink-muted leading-none">
-                    PROJECT
-                  </span>
-                  <span className="flex items-center gap-1 font-semibold text-xs text-ink mt-0.5 group-hover:text-black">
-                    <span className="max-w-[160px] truncate">{currentProjectName}</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-ink-muted group-hover:text-ink transition-transform" />
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-neutral-400 font-bold leading-tight">
+                      Project
+                    </span>
+                    <div className="flex items-center gap-1 text-xs font-semibold text-neutral-900 leading-tight">
+                      <span className="max-w-[120px] sm:max-w-[180px] truncate">
+                        {activeProject?.name || 'Select Project'}
+                      </span>
+                      <ChevronDown className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                    </div>
+                  </div>
                 </button>
 
-                {projectMenuOpen && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-20" 
-                      onClick={() => setProjectMenuOpen(false)} 
-                    />
-                    <div className="absolute left-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-elevated border border-sand-300 py-1.5 z-30 animate-in fade-in-50 duration-100">
-                      <div className="px-3 py-1.5 text-[10px] uppercase font-mono text-ink-muted border-b border-sand-200">
-                        Switch Project
-                      </div>
-                      <div className="max-h-52 overflow-y-auto py-1">
-                        {projects.map((p) => {
-                          const isCurrent = p.id === projectId;
-                          return (
-                            <button
-                              key={p.id}
-                              onClick={() => {
-                                setProjectMenuOpen(false);
-                                navigate(`/projects/${p.id}`);
-                              }}
-                              className={clsx(
-                                "w-full px-3 py-2 text-xs flex items-center justify-between text-left hover:bg-sand-100 transition-colors",
-                                isCurrent ? "font-bold text-ink bg-sand-50" : "text-ink-muted hover:text-ink"
-                              )}
-                            >
-                              <span className="truncate">{p.name}</span>
-                              {isCurrent && <Check className="w-3.5 h-3.5 text-terracotta shrink-0 ml-2" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="pt-1 border-t border-sand-200">
-                        <Link
-                          to="/projects/new"
-                          onClick={() => setProjectMenuOpen(false)}
-                          className="w-full px-3 py-2 text-xs font-semibold text-terracotta hover:bg-terracotta-50 flex items-center gap-2"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Create New Project</span>
-                        </Link>
-                      </div>
+                {/* Dropdown Menu */}
+                {isProjectDropdownOpen && (
+                  <div className="absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#EAE6DF] py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-neutral-400 font-bold">
+                      Your Projects ({projects.length})
                     </div>
-                  </>
+
+                    <div className="max-h-60 overflow-y-auto py-1">
+                      {projects.map((p) => {
+                        const isActive = p.id === activeProject?.id;
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => handleSelectProject(p.id)}
+                            className={clsx(
+                              "w-full text-left px-3.5 py-2 text-xs flex items-center justify-between gap-2 hover:bg-[#FAF8F5] transition-colors",
+                              isActive ? "font-bold text-neutral-950 bg-[#F5F2EC]/70" : "text-neutral-700"
+                            )}
+                          >
+                            <span className="truncate">{p.name}</span>
+                            {isActive && <Check className="w-3.5 h-3.5 text-neutral-950 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="border-t border-[#F2EFE9] mt-1 pt-1.5 px-2">
+                      <Link
+                        to="/projects/new"
+                        onClick={() => setIsProjectDropdownOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-neutral-900 hover:bg-[#FAF8F5] rounded-xl transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-neutral-600" />
+                        <span>Create New Project</span>
+                      </Link>
+                    </div>
+                  </div>
                 )}
               </div>
+
             </div>
 
-            {/* Right: Learn Button, Credit Counter, User Avatar */}
+            {/* Middle: "+ New Design" Button matching Screenshot 1 & 2 */}
             <div className="flex items-center gap-3">
-              {/* Learn Button */}
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noreferrer"
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-sand-50 text-ink text-xs font-medium rounded-lg border border-sand-300 shadow-subtle transition-all"
+              <Link
+                to={currentProjectId ? `/projects/${currentProjectId}` : "/projects/new"}
+                className="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-neutral-950 hover:bg-neutral-800 text-white rounded-xl text-xs font-semibold transition-all shadow-sm hover:shadow"
               >
-                <BookOpen className="w-3.5 h-3.5 text-ink-muted" />
-                <span>Learn</span>
-              </a>
-
-              {/* Credit pill */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-sand-300 rounded-lg shadow-subtle text-xs font-medium text-ink">
-                <Sparkles className="w-3.5 h-3.5 text-ink-muted" />
-                <div className="w-10 h-1.5 bg-sand-200 rounded-full overflow-hidden flex">
-                  <div className="w-4/5 bg-ink rounded-full" />
-                </div>
-                <span className="font-mono text-[11px]">4 left</span>
-              </div>
-
-              {/* User Avatar */}
-              <div 
-                className="w-8 h-8 rounded-full bg-terracotta text-white font-semibold text-xs flex items-center justify-center shadow-subtle cursor-pointer select-none hover:opacity-90 transition-opacity"
-                title="Tanuj (Homebuyer)"
-              >
-                T
-              </div>
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>New Design</span>
+              </Link>
             </div>
+
+            {/* Right: Learn Button, Credits Meter & User Avatar */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              
+              {/* "📖 Learn" Guide Button */}
+              <button
+                onClick={() => setIsLearnModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#F5F2EC] text-neutral-800 rounded-xl text-xs font-semibold border border-[#DDD8CE] transition-colors"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-neutral-600" />
+                <span>Learn</span>
+              </button>
+
+              {/* Usage Credits Meter matching "⚡ ── 5 left" */}
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF8F5] border border-[#EAE6DF] rounded-xl text-xs font-medium text-neutral-700">
+                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <div className="w-8 h-1 bg-neutral-200 rounded-full overflow-hidden">
+                  <div className="w-4/5 h-full bg-neutral-800 rounded-full" />
+                </div>
+                <span className="text-[11px] font-mono text-neutral-600 font-semibold">5 left</span>
+              </div>
+
+              {/* User Avatar Circle "N" */}
+              <div 
+                className="w-8 h-8 rounded-full bg-[#7C8B99] text-white flex items-center justify-center font-bold text-xs shadow-xs select-none"
+                title="Narayan (Architect)"
+              >
+                N
+              </div>
+
+            </div>
+
           </div>
         </div>
 
-        {/* Project View Subnav */}
+        {/* Feature Sub-Navigation Bar for seamless access to all current capabilities */}
         {isProjectView && (
-          <div className="border-t border-sand-200 bg-sand-50/70 px-4 sm:px-6 lg:px-8 overflow-x-auto flex items-center gap-1 py-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    clsx(
-                      'whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                      isActive
-                        ? 'bg-dark text-white shadow-subtle'
-                        : 'text-ink-muted hover:text-ink hover:bg-sand-200'
-                    )
-                  }
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {item.label}
-                </NavLink>
-              );
-            })}
+          <div className="bg-[#FAF8F5] border-t border-[#EAE6DF] px-4 sm:px-6 lg:px-8 py-2">
+            <div className="max-w-[1700px] mx-auto flex items-center justify-between gap-4 overflow-x-auto">
+              <nav className="flex items-center gap-1.5">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      end={item.end}
+                      className={({ isActive }) =>
+                        clsx(
+                          'whitespace-nowrap flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all',
+                          isActive
+                            ? 'bg-neutral-950 text-white shadow-xs'
+                            : 'text-neutral-600 hover:text-neutral-950 hover:bg-[#ECE7DE]'
+                        )
+                      }
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </nav>
+
+              <div className="hidden xl:flex items-center gap-3 text-[11px] text-neutral-500 font-mono">
+                <span>All Indian Vastu & Civil Tools Active</span>
+              </div>
+            </div>
           </div>
         )}
       </header>
@@ -208,47 +260,12 @@ export const AppShell = ({ children }) => {
         {children}
       </main>
 
-      {/* Floating Bottom-Right Chat Bubble */}
-      <div className="fixed bottom-6 right-6 z-50">
-        {chatOpen && (
-          <div className="mb-3 w-80 bg-white rounded-2xl shadow-elevated border border-sand-300 p-4 animate-in fade-in slide-in-from-bottom-3 duration-200">
-            <div className="flex items-center justify-between pb-3 border-b border-sand-200">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-dark text-white flex items-center justify-center text-xs">
-                  <Sparkles className="w-3.5 h-3.5" />
-                </div>
-                <span className="font-semibold text-xs text-ink">Drafted Assistant</span>
-              </div>
-              <button 
-                onClick={() => setChatOpen(false)}
-                className="text-xs text-ink-muted hover:text-ink"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-xs text-ink-muted py-3 leading-relaxed">
-              Need help customizing your architectural floor plans, modifying dimensions, or exporting high-res DWG/PDF blueprints?
-            </p>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Ask Drafted..." 
-                className="flex-1 text-xs px-3 py-2 bg-sand-50 border border-sand-300 rounded-lg focus:outline-none focus:border-dark"
-              />
-              <button className="px-3 py-2 bg-dark text-white rounded-lg text-xs font-semibold hover:bg-dark-hover transition-colors">
-                Send
-              </button>
-            </div>
-          </div>
-        )}
-        <button
-          onClick={() => setChatOpen(!chatOpen)}
-          className="w-12 h-12 bg-dark hover:bg-dark-hover text-white rounded-full shadow-elevated flex items-center justify-center transition-transform hover:scale-105 active:scale-95 focus:outline-none"
-          title="Drafted Support & Feedback"
-        >
-          <MessageSquare className="w-5 h-5 fill-white/10" />
-        </button>
-      </div>
+      {/* Learn Guide Modal */}
+      <LearnModal 
+        isOpen={isLearnModalOpen} 
+        onClose={() => setIsLearnModalOpen(false)} 
+      />
+
     </div>
   );
 };

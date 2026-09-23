@@ -1,36 +1,39 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
+  Building2, 
+  ChevronRight, 
+  Plus, 
+  Sparkles, 
+  Edit3, 
+  Bed, 
+  Bath, 
+  Maximize2, 
+  Home, 
+  Check, 
+  Clock, 
   Layers, 
-  ArrowRight, 
   Layout, 
   Box, 
   IndianRupee, 
   ScrollText, 
-  Download,
-  MapPin,
-  Compass,
-  Sparkles,
-  CheckCircle2,
-  RotateCcw,
+  Download, 
+  UserPlus, 
+  ArrowRight, 
+  MessageSquare, 
+  X, 
   Image as ImageIcon,
-  Edit2,
-  Bed,
-  Bath,
-  Plus,
-  Bookmark,
-  Zap,
-  FileDown,
-  Check,
-  Home,
-  Square,
-  Maximize2
+  CheckCircle2,
+  SlidersHorizontal,
+  Compass,
+  Grid
 } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore.js';
-import { formatInrShorthand } from '../lib/currency.js';
-import { formatDimension } from '../lib/units.js';
-import { RenameModal } from '../components/project/RenameModal.jsx';
 import { GenerationService } from '../services/generation.js';
+import { ShapesAndRoomsView } from '../components/design/ShapesAndRoomsView.jsx';
+import { DesignStepper } from '../components/design/DesignStepper.jsx';
+import { DesignConceptCard, StartNewDesignCard, WatercolorFacade } from '../components/design/DesignConceptCard.jsx';
+import { NaturalLanguageAssistant } from '../components/assistant/NaturalLanguageAssistant.jsx';
 
 export const ProjectOverviewPage = () => {
   const { projectId } = useParams();
@@ -43,12 +46,15 @@ export const ProjectOverviewPage = () => {
     isLoading 
   } = useProjectStore();
 
-  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [activeFloorLevel, setActiveFloorLevel] = useState(0);
+  const [activeTab, setActiveTab] = useState('in_progress'); // 'new' | 'in_progress' | 'shortlisted'
+  const [viewMode, setViewMode] = useState('stepper'); // 'stepper' (Screenshot 1) | 'gallery' (Screenshot 2)
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [coverPhoto, setCoverPhoto] = useState(null);
-  const [selectedDesignIdx, setSelectedDesignIdx] = useState(1); // Default to Design 2 like in screenshot
-  const [inviteModalOpen, setInviteModalOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [invitedList, setInvitedList] = useState([]);
+  const [toastMsg, setToastMsg] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -57,65 +63,135 @@ export const ProjectOverviewPage = () => {
     }
   }, [projectId, loadProject]);
 
+  useEffect(() => {
+    if (activeProject) {
+      setEditedTitle(activeProject.name || 'Untitled Project');
+      if (activeProject.coverPhoto) {
+        setCoverPhoto(activeProject.coverPhoto);
+      }
+    }
+  }, [activeProject]);
+
+  // Ensure 3 concept options exist
+  useEffect(() => {
+    if (activeProject && (!activeProject.designOptions || activeProject.designOptions.length === 0)) {
+      GenerationService.generate(
+        { plot: activeProject.plot, requirements: activeProject.requirements },
+        () => {}
+      ).then(({ options, defaultDesign }) => {
+        const updated = {
+          ...activeProject,
+          designOptions: options,
+          selectedOptionId: options[0].id,
+          design: activeProject.design || defaultDesign,
+        };
+        saveActiveProject(updated);
+      });
+    }
+  }, [activeProject, saveActiveProject]);
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  const project = activeProject || {
+    id: projectId || 'proj-demo',
+    name: 'dfgg',
+    plot: { width: 30, length: 50, floors: 2 },
+    requirements: { bhk: 3, bathrooms: 2, budgetInr: 3500000 },
+    designOptions: [],
+  };
+
+  const currentPlan = project.design || project.designOptions?.[0]?.floorPlan || { floors: [] };
+  const designOptions = project.designOptions || [];
+  const selectedOptionId = project.selectedOptionId || designOptions[0]?.id;
+
+  // Calculate Bed & Bath count dynamically from active plan
+  const allRooms = currentPlan.floors?.flatMap((f) => f.rooms || []) || [];
+  const bedCount = allRooms.filter((r) => r.type.includes('bedroom')).length || project.requirements?.bhk || 3;
+  const bathCount = allRooms.filter((r) => r.type.includes('bathroom')).length || project.requirements?.bathrooms || 2;
+  const heatedArea = currentPlan.builtUpAreaSqFt || (project.plot?.width * project.plot?.length * (project.plot?.floors || 1)) || 1471;
+
+  const handleTitleSubmit = (e) => {
+    e.preventDefault();
+    if (editedTitle.trim()) {
+      renameProject(project.id, editedTitle.trim());
+      setIsEditingTitle(false);
+      showToast('Project renamed successfully');
+    }
+  };
+
+  const handleSelectConcept = (opt) => {
+    const updated = {
+      ...project,
+      selectedOptionId: opt.id,
+      design: opt.floorPlan,
+    };
+    saveActiveProject(updated);
+    navigate(`/projects/${project.id}/drafts/${opt.id}`);
+  };
+
   const handleCoverUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setCoverPhoto(url);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target.result;
+        setCoverPhoto(url);
+        saveActiveProject({ ...project, coverPhoto: url });
+        showToast('Updated cover photo!');
+      };
+      reader.readAsDataURL(file);
     }
   };
-
-  const handleRenameConfirm = (newName) => {
-    if (activeProject) {
-      renameProject(activeProject.id, newName);
-      setIsRenameOpen(false);
-    }
-  };
-
-  const handleInviteSubmit = (e) => {
-    e.preventDefault();
-    if (inviteEmail.trim()) {
-      setInvitedList([...invitedList, { email: inviteEmail.trim(), role: 'Collaborator' }]);
-      setInviteEmail('');
-      setInviteModalOpen(false);
-    }
-  };
-
-  if (isLoading || !activeProject) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-12 bg-linen">
-        <div className="text-center space-y-3">
-          <Compass className="w-8 h-8 text-dark animate-spin mx-auto" />
-          <p className="text-xs font-mono text-ink-muted">Loading Drafted Studio...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const project = activeProject;
-  const plot = project.plot || { width: 30, length: 50, unit: 'ft', floors: 2, facing: 'north' };
-  const req = project.requirements || { bhk: 2, bathrooms: 2, budgetInr: 3500000, vastu: 'basic' };
-  const heatedArea = project.design?.builtUpAreaSqFt || 2443;
-  const totalArea = Math.round(heatedArea * 1.05);
 
   return (
-    <div className="flex-1 bg-linen py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="flex-1 bg-[#F7F5F0] py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1700px] mx-auto">
         
-        {/* Main 3-Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+        {/* Toast Notification */}
+        {toastMsg && (
+          <div className="fixed bottom-20 right-6 z-50 bg-neutral-950 text-white px-4 py-2.5 rounded-2xl shadow-xl text-xs flex items-center gap-2 border border-neutral-700 animate-in fade-in slide-in-from-bottom-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{toastMsg}</span>
+          </div>
+        )}
+
+        {/* 3-Column Studio Grid Layout (Matching Drafted Screenshots) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* LEFT SIDEBAR (Cols 1-3 on LG) */}
-          <div className="lg:col-span-3 space-y-5">
+          {/* =========================================================================
+              LEFT COLUMN: Project Profile, Metrics, Team, & Design Filters (Cols 1-3)
+             ========================================================================= */}
+          <aside className="lg:col-span-3 space-y-5">
             
-            {/* Project Details Card */}
-            <div className="bg-white rounded-2xl border border-sand-300 p-5 shadow-subtle space-y-5">
+            {/* Project Card */}
+            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#EAE6DF] shadow-xs space-y-5">
               
-              {/* Cover Photo Box */}
+              {/* Cover Photo Area */}
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full h-36 bg-[#F5F2EA] hover:bg-[#EFEBE0] rounded-xl border border-dashed border-sand-300 flex flex-col items-center justify-center cursor-pointer transition-colors relative overflow-hidden group text-center p-3"
+                className="group relative w-full h-36 rounded-2xl bg-[#F5F2EC] hover:bg-[#EAE6DF] border border-dashed border-[#DDD7CD] flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden"
               >
+                {coverPhoto ? (
+                  <>
+                    <img src={coverPhoto} alt="Cover" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold">
+                      Change Cover Photo
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center p-4 space-y-2">
+                    <div className="w-9 h-9 rounded-xl bg-white shadow-2xs text-neutral-600 flex items-center justify-center mx-auto group-hover:scale-105 transition-transform">
+                      <ImageIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-neutral-800">Add Cover Photo</p>
+                      <p className="text-[11px] text-neutral-400">Click or drop image to upload</p>
+                    </div>
+                  </div>
+                )}
                 <input 
                   type="file" 
                   ref={fileInputRef} 
@@ -123,524 +199,516 @@ export const ProjectOverviewPage = () => {
                   accept="image/*" 
                   className="hidden" 
                 />
-                
-                {coverPhoto ? (
-                  <img src={coverPhoto} alt="Cover" className="w-full h-full object-cover rounded-lg" />
+              </div>
+
+              {/* Project Title with inline Rename */}
+              <div className="flex items-center justify-between gap-2 pt-1">
+                {isEditingTitle ? (
+                  <form onSubmit={handleTitleSubmit} className="flex-1 flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={editedTitle}
+                      onChange={(e) => setEditedTitle(e.target.value)}
+                      className="w-full text-xl font-serif font-bold text-neutral-900 border-b border-neutral-900 focus:outline-hidden bg-transparent"
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      className="p-1.5 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingTitle(false)}
+                      className="p-1.5 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </form>
                 ) : (
                   <>
-                    <div className="w-9 h-9 rounded-lg bg-white border border-sand-300 flex items-center justify-center text-ink-muted mb-2 shadow-subtle group-hover:scale-105 transition-transform">
-                      <ImageIcon className="w-5 h-5 stroke-[1.5]" />
-                    </div>
-                    <span className="font-semibold text-xs text-ink">Add Cover Photo</span>
-                    <span className="text-[10px] text-ink-muted mt-0.5">Click or drop image to upload</span>
+                    <h2 className="font-serif text-2xl font-bold text-neutral-950 truncate">
+                      {project.name}
+                    </h2>
+                    <button
+                      onClick={() => setIsEditingTitle(true)}
+                      className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-900 hover:bg-[#F5F2EC] transition-colors"
+                      title="Rename Project"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
                   </>
                 )}
               </div>
 
-              {/* Project Title & Edit Icon */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <h1 className="font-serif text-2xl font-bold text-ink tracking-tight">
-                    {project.name || 'Spano Ka Ghar'}
-                  </h1>
-                  <button
-                    onClick={() => setIsRenameOpen(true)}
-                    className="p-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-sand-100 border border-sand-200 transition-colors"
-                    title="Rename Project"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Heated Area Metric */}
-              <div className="pt-1">
-                <div className="font-serif text-3xl font-bold text-ink">
-                  {heatedArea.toLocaleString('en-IN')} ft²
-                </div>
-                <span className="text-xs text-ink-muted font-normal block mt-0.5">
-                  Heated Area
-                </span>
-              </div>
-
-              {/* Beds & Baths Badges */}
-              <div className="flex items-center gap-2 pt-1">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-sand-300 rounded-lg text-xs font-semibold text-ink shadow-subtle">
-                  <Bed className="w-3.5 h-3.5 text-ink-muted" />
-                  <span>{req.bhk || 2} Beds</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-sand-300 rounded-lg text-xs font-semibold text-ink shadow-subtle">
-                  <Bath className="w-3.5 h-3.5 text-ink-muted" />
-                  <span>{req.bathrooms || 2} Baths</span>
-                </div>
-              </div>
-
-              {/* Buildable Area / Specs Footer */}
-              <div className="pt-3 border-t border-sand-200 flex items-center justify-between text-xs">
-                <span className="text-ink-muted">Buildable Area</span>
-                <span className="font-semibold text-ink">Flexible</span>
-              </div>
-            </div>
-
-            {/* Project Team Card */}
-            <div className="bg-white rounded-2xl border border-sand-300 p-5 shadow-subtle space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-xs text-ink">Project Team</h3>
-                <button
-                  onClick={() => setInviteModalOpen(true)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 bg-white hover:bg-sand-50 border border-sand-300 rounded-lg text-ink transition-colors shadow-subtle"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Invite</span>
-                </button>
-              </div>
-
+              {/* Area & Badges */}
               <div className="space-y-3">
-                {/* Member 1: Tanuj */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-terracotta text-white font-bold text-xs flex items-center justify-center shadow-subtle">
-                      T
-                    </div>
-                    <div>
-                      <div className="font-semibold text-xs text-ink leading-tight">Tanuj</div>
-                      <div className="text-[11px] text-ink-muted">Homebuyer</div>
-                    </div>
+                <div>
+                  <div className="font-serif text-2xl font-bold text-neutral-950">
+                    {heatedArea.toLocaleString()} ft²
                   </div>
-                  <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Now</span>
+                  <div className="text-xs text-neutral-500 font-medium">
+                    Heated Area
                   </div>
                 </div>
 
-                {/* Additional Invited Members */}
-                {invitedList.map((m, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-xs pt-1 border-t border-sand-100">
-                    <div className="truncate max-w-[140px] text-ink-muted font-mono text-[11px]">{m.email}</div>
-                    <span className="text-[10px] bg-sand-100 text-ink-muted px-1.5 py-0.5 rounded">Invited</span>
+                {/* Beds & Baths Badges matching Screenshot 1 & 2 */}
+                <div className="flex items-center gap-4 text-xs font-semibold text-neutral-800 pt-1">
+                  <div className="flex items-center gap-1.5">
+                    <Bed className="w-4 h-4 text-neutral-600" />
+                    <span>{bedCount} Beds</span>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Navigation Panel */}
-            <div className="bg-white rounded-2xl border border-sand-300 p-4 shadow-subtle space-y-2">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-ink-muted px-1 pb-1">
-                Studio Modules
-              </div>
-              <Link
-                to={`/projects/${project.id}/design`}
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-sand-100 text-xs font-semibold text-ink transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Layout className="w-3.5 h-3.5 text-ink-muted" />
-                  <span>2D Workspace</span>
-                </div>
-                <ArrowRight className="w-3 h-3 text-ink-muted" />
-              </Link>
-              <Link
-                to={`/projects/${project.id}/3d`}
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-sand-100 text-xs font-semibold text-ink transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Box className="w-3.5 h-3.5 text-ink-muted" />
-                  <span>3D Concept</span>
-                </div>
-                <ArrowRight className="w-3 h-3 text-ink-muted" />
-              </Link>
-              <Link
-                to={`/projects/${project.id}/cost`}
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-sand-100 text-xs font-semibold text-ink transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <IndianRupee className="w-3.5 h-3.5 text-ink-muted" />
-                  <span>Cost & Budget</span>
-                </div>
-                <ArrowRight className="w-3 h-3 text-ink-muted" />
-              </Link>
-              <Link
-                to={`/projects/${project.id}/boq`}
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-sand-100 text-xs font-semibold text-ink transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <ScrollText className="w-3.5 h-3.5 text-ink-muted" />
-                  <span>Preliminary BOQ</span>
-                </div>
-                <ArrowRight className="w-3 h-3 text-ink-muted" />
-              </Link>
-              <Link
-                to={`/projects/${project.id}/export`}
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-sand-100 text-xs font-semibold text-ink transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Download className="w-3.5 h-3.5 text-ink-muted" />
-                  <span>Export Files</span>
-                </div>
-                <ArrowRight className="w-3 h-3 text-ink-muted" />
-              </Link>
-            </div>
-
-          </div>
-
-          {/* CENTER FEED (Cols 4-9 on LG) */}
-          <div className="lg:col-span-6 space-y-6">
-            
-            {/* Header: My Designs (2) & New Design Button */}
-            <div className="flex items-center justify-between">
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-ink">
-                My Designs (2)
-              </h2>
-              <Link
-                to={`/projects/${project.id}/design`}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-dark hover:bg-dark-hover text-white rounded-lg text-xs font-semibold shadow-subtle transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>New Design</span>
-              </Link>
-            </div>
-
-            {/* Banner: Explore three different design directions */}
-            <div className="bg-white rounded-2xl border border-sand-300 p-6 shadow-subtle relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6">
-              
-              {/* Text & Steps */}
-              <div className="space-y-4 max-w-xs">
-                <h3 className="font-serif text-xl font-bold text-ink leading-snug">
-                  Explore three different design directions.
-                </h3>
-                {/* Stepper Dots */}
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-amber-100 border border-amber-400 flex items-center justify-center text-[10px] text-amber-800 font-bold">
-                    ✓
-                  </div>
-                  <div className="w-5 h-5 rounded-full border-2 border-amber-500 flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                  </div>
-                  <div className="w-5 h-5 rounded-full border border-sand-400 flex items-center justify-center text-[9px] text-ink-muted">
-                    ⭘
-                  </div>
-                  <div className="w-5 h-5 rounded-full border border-sand-400 flex items-center justify-center text-[9px] text-ink-muted">
-                    ⭘
-                  </div>
-                </div>
-              </div>
-
-              {/* Overlapping Ideas Fan Graphic + Badge */}
-              <div className="flex items-center gap-4">
-                {/* 3 cards fan */}
-                <div className="relative w-48 h-28 flex items-center justify-center">
-                  {/* Idea 1 */}
-                  <div className="absolute left-0 w-24 h-24 bg-sand-50 border border-sand-300 rounded-lg p-1.5 shadow-sm transform -rotate-6 transition-transform hover:-translate-y-1">
-                    <div className="text-[8px] font-mono text-ink-muted">✨ Idea 1</div>
-                    <div className="w-full h-14 mt-1 bg-gradient-to-br from-amber-100/60 to-emerald-100/60 rounded flex items-center justify-center text-[8px] text-ink-muted">
-                      Elevation 1
-                    </div>
-                  </div>
-                  {/* Idea 2 */}
-                  <div className="absolute left-10 z-10 w-28 h-26 bg-white border border-sand-300 rounded-lg p-1.5 shadow-md transform hover:-translate-y-1 transition-transform">
-                    <div className="text-[8px] font-mono font-bold text-ink">✨ Idea 2</div>
-                    <div className="w-full h-16 mt-1 bg-gradient-to-br from-orange-100/60 via-amber-50 to-emerald-100/60 rounded flex items-center justify-center text-[9px] font-semibold text-ink">
-                      Active
-                    </div>
-                  </div>
-                  {/* Idea 3 */}
-                  <div className="absolute right-0 w-24 h-24 bg-sand-50 border border-sand-300 rounded-lg p-1.5 shadow-sm transform rotate-6 transition-transform hover:-translate-y-1">
-                    <div className="text-[8px] font-mono text-ink-muted">✨ Idea 3</div>
-                    <div className="w-full h-14 mt-1 bg-gradient-to-br from-sky-100/60 to-emerald-100/60 rounded flex items-center justify-center text-[8px] text-ink-muted">
-                      Elevation 3
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    <Bath className="w-4 h-4 text-neutral-600" />
+                    <span>{bathCount} Baths</span>
                   </div>
                 </div>
 
-                {/* Circular 2/3 Ring Badge */}
-                <div className="relative w-14 h-14 rounded-full border-4 border-amber-500/80 flex items-center justify-center bg-amber-50/50 shadow-subtle shrink-0">
-                  <span className="font-serif text-base font-bold text-amber-900">
-                    2/3
+                {/* Buildable Area */}
+                <div className="pt-3 border-t border-[#F2EFE9] flex items-center justify-between text-xs">
+                  <span className="text-neutral-500">Buildable Area</span>
+                  <span className="font-semibold text-neutral-900 font-mono">
+                    {project.plot?.width || 30} × {project.plot?.length || 50} ft (Flexible)
                   </span>
                 </div>
               </div>
 
             </div>
 
-            {/* Subheader: ✨ New (1) */}
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-ink">
-              <Sparkles className="w-3.5 h-3.5 text-ink" />
-              <span>New (1)</span>
-            </div>
-
-            {/* MAIN DESIGN CARD (Design 2) */}
-            <div className="bg-white rounded-2xl border border-sand-300 shadow-subtle overflow-hidden">
-              
-              {/* Card Header Bar */}
-              <div className="p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 border-b border-sand-200">
-                <div className="flex items-center gap-3">
-                  <Bookmark className="w-4 h-4 text-ink fill-ink/10" />
-                  <h3 className="font-serif text-lg font-bold text-ink">
-                    Design 2
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-xs text-ink-muted">
-                    <div className="w-5 h-5 rounded-full bg-terracotta text-white font-bold text-[10px] flex items-center justify-center">
-                      T
-                    </div>
-                    <span>Tanuj • 1d ago</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Link
-                    to={`/projects/${project.id}/design`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-dark hover:bg-dark-hover text-white rounded-lg text-xs font-semibold shadow-subtle transition-colors"
-                  >
-                    <Zap className="w-3.5 h-3.5 fill-white" />
-                    <span>Remix</span>
-                  </Link>
-
-                  <Link
-                    to={`/projects/${project.id}/export`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-sand-50 text-ink rounded-lg text-xs font-medium border border-sand-300 shadow-subtle transition-colors"
-                  >
-                    <FileDown className="w-3.5 h-3.5 text-ink-muted" />
-                    <span>Download Files</span>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Side-by-Side Visual Preview: 3D Exterior Elevation + 2D Floor Plan */}
-              <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-center bg-[#FAF9F5]">
-                
-                {/* Left: 3D Exterior Elevation Watercolor Artwork */}
-                <div className="h-64 sm:h-72 bg-gradient-to-b from-sky-50/50 via-white to-amber-50/40 rounded-xl border border-sand-300 p-4 flex flex-col justify-between relative overflow-hidden shadow-inner group">
-                  <div className="absolute top-3 left-3 text-[10px] font-mono font-bold bg-white/90 text-ink px-2 py-0.5 rounded border border-sand-200 shadow-subtle">
-                    ✨ Exterior Elevation
-                  </div>
-
-                  {/* SVG Illustration of Watercolor Home */}
-                  <div className="w-full h-full flex items-center justify-center">
-                    <svg viewBox="0 0 300 200" className="w-full h-full max-h-56">
-                      {/* Sky & Clouds Watercolor washes */}
-                      <ellipse cx="150" cy="50" rx="130" ry="40" fill="#EBF4F6" opacity="0.6" />
-                      <ellipse cx="220" cy="40" rx="60" ry="25" fill="#E3EFF3" opacity="0.7" />
-                      
-                      {/* Background Trees & Foliage watercolor */}
-                      <circle cx="50" cy="110" r="35" fill="#C3DAC3" opacity="0.7" />
-                      <circle cx="80" cy="95" r="40" fill="#A8CDA9" opacity="0.8" />
-                      <circle cx="230" cy="100" r="45" fill="#BFDABF" opacity="0.75" />
-                      <circle cx="265" cy="115" r="30" fill="#ADCBAE" opacity="0.8" />
-                      
-                      {/* Roof of House */}
-                      <polygon points="40,115 150,60 260,115" fill="#B98A60" />
-                      <polygon points="45,115 150,65 255,115" fill="#C8966E" />
-                      <line x1="150" y1="60" x2="150" y2="115" stroke="#9E6E45" strokeWidth="1" strokeDasharray="3,3" />
-
-                      {/* House Facade Main Body */}
-                      <rect x="55" y="115" width="190" height="60" fill="#FDFCF9" stroke="#DFD8CC" strokeWidth="1.5" />
-                      
-                      {/* Windows */}
-                      <rect x="75" y="125" width="28" height="25" fill="#D6E6EB" stroke="#7A8E99" strokeWidth="1.5" rx="1" />
-                      <line x1="89" y1="125" x2="89" y2="150" stroke="#7A8E99" strokeWidth="1" />
-                      <line x1="75" y1="137" x2="103" y2="137" stroke="#7A8E99" strokeWidth="1" />
-
-                      <rect x="115" y="125" width="28" height="25" fill="#D6E6EB" stroke="#7A8E99" strokeWidth="1.5" rx="1" />
-                      <line x1="129" y1="125" x2="129" y2="150" stroke="#7A8E99" strokeWidth="1" />
-                      <line x1="115" y1="137" x2="143" y2="137" stroke="#7A8E99" strokeWidth="1" />
-
-                      {/* Main Entrance Door */}
-                      <rect x="165" y="125" width="22" height="50" fill="#9E6E45" stroke="#724825" strokeWidth="1.5" rx="1" />
-                      <circle cx="170" cy="150" r="1.5" fill="#FDE68A" />
-
-                      {/* Garage / Side Wing */}
-                      <rect x="195" y="128" width="40" height="47" fill="#F7F5F0" stroke="#DFD8CC" strokeWidth="1" />
-                      <line x1="195" y1="138" x2="235" y2="138" stroke="#E5E0D6" strokeWidth="1" />
-                      <line x1="195" y1="148" x2="235" y2="148" stroke="#E5E0D6" strokeWidth="1" />
-                      <line x1="195" y1="158" x2="235" y2="158" stroke="#E5E0D6" strokeWidth="1" />
-
-                      {/* Lawn & Flower Bed */}
-                      <ellipse cx="150" cy="180" rx="140" ry="16" fill="#A7C9A4" opacity="0.9" />
-                      <ellipse cx="120" cy="178" rx="80" ry="8" fill="#88B485" opacity="0.95" />
-                      <circle cx="110" cy="175" r="4" fill="#E0582B" opacity="0.8" />
-                      <circle cx="130" cy="176" r="3.5" fill="#D97706" opacity="0.8" />
-                      <circle cx="150" cy="175" r="4" fill="#E0582B" opacity="0.8" />
-                    </svg>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[10px] text-ink-muted">
-                    <span>Front Elevation</span>
-                    <Link 
-                      to={`/projects/${project.id}/3d`} 
-                      className="font-semibold text-ink hover:underline flex items-center gap-1"
-                    >
-                      <span>Explore 3D</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Right: 2D Floor Plan Schematic View */}
-                <div className="h-64 sm:h-72 bg-white rounded-xl border border-sand-300 p-4 flex flex-col justify-between relative overflow-hidden shadow-inner group">
-                  <div className="absolute top-3 left-3 text-[10px] font-mono font-bold bg-white text-ink px-2 py-0.5 rounded border border-sand-200 shadow-subtle">
-                    📐 2D Layout Plan
-                  </div>
-
-                  {/* Architectural 2D Plan Graphic */}
-                  <div className="w-full h-full flex items-center justify-center p-2">
-                    <svg viewBox="0 0 240 200" className="w-full h-full max-h-56">
-                      {/* Outer boundary wall */}
-                      <rect x="20" y="20" width="200" height="160" fill="#FDFCFA" stroke="#141414" strokeWidth="3" rx="2" />
-
-                      {/* Master Bedroom */}
-                      <rect x="25" y="25" width="85" height="70" fill="#FAF6F0" stroke="#141414" strokeWidth="1.5" />
-                      <text x="67" y="55" textAnchor="middle" fontSize="9" fontWeight="600" fill="#141414" fontFamily="sans-serif">Master Bed</text>
-                      <text x="67" y="68" textAnchor="middle" fontSize="7" fill="#666666" fontFamily="monospace">14&apos; × 12&apos;</text>
-
-                      {/* Bedroom 2 */}
-                      <rect x="25" y="100" width="85" height="75" fill="#FAF6F0" stroke="#141414" strokeWidth="1.5" />
-                      <text x="67" y="135" textAnchor="middle" fontSize="9" fontWeight="600" fill="#141414" fontFamily="sans-serif">Bed 2</text>
-                      <text x="67" y="148" textAnchor="middle" fontSize="7" fill="#666666" fontFamily="monospace">12&apos; × 11&apos;</text>
-
-                      {/* Living & Dining Hall */}
-                      <rect x="115" y="25" width="100" height="95" fill="#FFFFFF" stroke="#141414" strokeWidth="1.5" />
-                      <text x="165" y="65" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#141414" fontFamily="sans-serif">Living & Dining</text>
-                      <text x="165" y="78" textAnchor="middle" fontSize="7" fill="#666666" fontFamily="monospace">16&apos; × 18&apos;</text>
-
-                      {/* Kitchen & Bath */}
-                      <rect x="115" y="125" width="60" height="50" fill="#F7F2EA" stroke="#141414" strokeWidth="1.5" />
-                      <text x="145" y="152" textAnchor="middle" fontSize="8" fontWeight="600" fill="#141414" fontFamily="sans-serif">Kitchen</text>
-
-                      <rect x="180" y="125" width="35" height="50" fill="#F2EFE8" stroke="#141414" strokeWidth="1.5" />
-                      <text x="197" y="152" textAnchor="middle" fontSize="8" fontWeight="600" fill="#141414" fontFamily="sans-serif">Bath</text>
-
-                      {/* Door swings indicators */}
-                      <path d="M 110,60 A 15,15 0 0,0 110,75" fill="none" stroke="#666666" strokeWidth="1" strokeDasharray="2,2" />
-                      <path d="M 110,130 A 15,15 0 0,0 110,145" fill="none" stroke="#666666" strokeWidth="1" strokeDasharray="2,2" />
-                    </svg>
-                  </div>
-
-                  <div className="flex justify-between items-center text-[10px] text-ink-muted">
-                    <span>Ground Floor</span>
-                    <Link 
-                      to={`/projects/${project.id}/design`} 
-                      className="font-semibold text-ink hover:underline flex items-center gap-1"
-                    >
-                      <span>Open in 2D Editor</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Card Footer Dimensions Bar */}
-              <div className="px-5 py-3.5 bg-white border-t border-sand-200 flex flex-wrap items-center justify-between gap-4 text-xs font-medium text-ink">
-                <div className="flex items-center gap-1.5">
-                  <Home className="w-3.5 h-3.5 text-ink-muted" />
-                  <span className="font-bold">{heatedArea.toLocaleString('en-IN')} ft²</span>
-                  <span className="text-ink-muted font-normal">Heated Area</span>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <Square className="w-3.5 h-3.5 text-ink-muted" />
-                  <span className="font-bold">{totalArea.toLocaleString('en-IN')} ft²</span>
-                  <span className="text-ink-muted font-normal">Total Area</span>
-                </div>
-
-                <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                  <Maximize2 className="w-3.5 h-3.5 text-ink-muted" />
-                  <span className="font-bold">53 ft 0 in x 58 ft 8 in</span>
-                  <span className="text-ink-muted font-sans font-normal">Width x Depth</span>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* RIGHT COLUMN (Inspiration 0, Cols 10-12 on LG) */}
-          <div className="lg:col-span-3 space-y-4">
-            
-            {/* Header: Inspiration (0) */}
-            <h2 className="font-serif text-lg font-bold text-ink">
-              Inspiration (0)
-            </h2>
-
-            {/* Inspiration Card Frame */}
-            <div className="bg-white rounded-2xl border border-sand-300 p-6 shadow-subtle flex flex-col items-center justify-center text-center relative overflow-hidden group min-h-[380px] bg-gradient-to-b from-amber-50/20 via-white to-sand-50/30">
-              
-              {/* Artistic architectural sketch background */}
-              <div className="absolute inset-0 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none p-4">
-                <svg viewBox="0 0 200 300" className="w-full h-full">
-                  <path d="M 20,100 L 100,50 L 180,100 L 180,240 L 20,240 Z" fill="none" stroke="#CFC5B4" strokeWidth="1" strokeDasharray="3,3" />
-                  <circle cx="100" cy="50" r="40" fill="#FAF5EA" opacity="0.5" />
-                  <ellipse cx="100" cy="250" rx="70" ry="20" fill="#E8E2D5" opacity="0.6" />
-                </svg>
-              </div>
-
-              {/* Center Plus & Action */}
-              <div className="relative z-10 space-y-3">
+            {/* Project Team Card matching Screenshot 1 & 2 */}
+            <div className="bg-white rounded-3xl p-5 border border-[#EAE6DF] shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-neutral-900 uppercase tracking-wider font-mono">
+                  Project Team
+                </h3>
                 <button
-                  onClick={() => navigate(`/projects/${project.id}/design`)}
-                  className="w-12 h-12 rounded-full bg-white border border-sand-300 shadow-elevated flex items-center justify-center mx-auto text-ink hover:scale-110 hover:border-dark transition-all"
+                  onClick={() => setIsInviteModalOpen(true)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-800 hover:text-neutral-950 px-2.5 py-1 rounded-lg hover:bg-[#F5F2EC] transition-colors border border-[#EAE6DF]"
                 >
-                  <Plus className="w-6 h-6 stroke-[1.5]" />
+                  <Plus className="w-3 h-3" />
+                  <span>Invite</span>
                 </button>
-                <h4 className="font-serif text-base font-bold text-ink">
-                  Explore Other Designs
-                </h4>
-                <p className="text-[11px] text-ink-muted max-w-[180px] mx-auto leading-relaxed">
-                  Browse architectural concept variations, elevations, and layout directions.
-                </p>
               </div>
 
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#7C8B99] text-white font-bold text-xs flex items-center justify-center">
+                    N
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-neutral-900">Narayan</h4>
+                    <p className="text-[11px] text-neutral-400">Architect</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Now</span>
+                </div>
+              </div>
             </div>
 
-          </div>
+            {/* My Designs Filter Menu matching Screenshot 1 & 2 */}
+            <div className="bg-white rounded-3xl p-4 border border-[#EAE6DF] shadow-xs space-y-1">
+              <div className="px-3 py-2 text-xs font-bold text-neutral-900 uppercase tracking-wider font-mono">
+                My Designs ({designOptions.length || 2})
+              </div>
+
+              <button
+                onClick={() => setActiveTab('new')}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left ${
+                  activeTab === 'new'
+                    ? 'bg-neutral-950 text-white'
+                    : 'text-neutral-600 hover:bg-[#FAF8F5] hover:text-neutral-900'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 opacity-70" />
+                <span>New (0)</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('in_progress')}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left ${
+                  activeTab === 'in_progress'
+                    ? 'bg-neutral-950 text-white shadow-xs'
+                    : 'text-neutral-600 hover:bg-[#FAF8F5] hover:text-neutral-900'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Layers className="w-4 h-4 opacity-80" />
+                  <span>In-Progress ({designOptions.length || 1})</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+              </button>
+
+              <button
+                onClick={() => setActiveTab('shortlisted')}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition-all text-left ${
+                  activeTab === 'shortlisted'
+                    ? 'bg-neutral-950 text-white'
+                    : 'text-neutral-600 hover:bg-[#FAF8F5] hover:text-neutral-900'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4 opacity-70" />
+                <span>Shortlisted (0)</span>
+              </button>
+            </div>
+
+          </aside>
+
+          {/* =========================================================================
+              CENTER COLUMN: Main Studio, Banners, Shapes & Rooms / Gallery (Cols 4-10)
+             ========================================================================= */}
+          <main className="lg:col-span-7 space-y-6">
+            
+            {/* Header: "My Designs (2)" with "+ New Design" & View Toggle */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h1 className="font-serif text-2xl sm:text-3xl font-bold text-neutral-950">
+                  My Designs ({designOptions.length || 2})
+                </h1>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                {/* Switch between Screenshot 1 (Shapes & Rooms + Stepper) and Screenshot 2 (Gallery) */}
+                <div className="flex items-center gap-1 bg-white border border-[#EAE6DF] p-1 rounded-xl shadow-2xs">
+                  <button
+                    onClick={() => setViewMode('stepper')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      viewMode === 'stepper'
+                        ? 'bg-neutral-950 text-white shadow-xs'
+                        : 'text-neutral-600 hover:text-neutral-950'
+                    }`}
+                  >
+                    Studio & Stepper
+                  </button>
+                  <button
+                    onClick={() => setViewMode('gallery')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      viewMode === 'gallery'
+                        ? 'bg-neutral-950 text-white shadow-xs'
+                        : 'text-neutral-600 hover:text-neutral-950'
+                    }`}
+                  >
+                    Explore Gallery
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => navigate('/projects/new')}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-neutral-950 hover:bg-neutral-800 text-white rounded-xl text-xs font-semibold transition-all shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>New Design</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Top Banner: "Explore three different design directions" matching Screenshot 1 */}
+            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#EAE6DF] shadow-xs relative overflow-hidden">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                
+                {/* Left: Title & Progress Circles */}
+                <div className="space-y-3">
+                  <h3 className="font-serif text-xl sm:text-2xl font-bold text-neutral-900">
+                    Explore three different <br className="hidden sm:inline" />
+                    design directions.
+                  </h3>
+                  
+                  {/* Circular Step Indicator: "✔ ○ ○ ○" */}
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-[#E3E8DE] flex items-center justify-center text-neutral-800 text-[11px] font-bold">
+                      ✓
+                    </div>
+                    <div className="w-5 h-5 rounded-full border border-neutral-300 flex items-center justify-center text-[10px] text-neutral-400">
+                      ○
+                    </div>
+                    <div className="w-5 h-5 rounded-full border border-neutral-300 flex items-center justify-center text-[10px] text-neutral-400">
+                      ○
+                    </div>
+                    <div className="w-5 h-5 rounded-full border border-neutral-300 flex items-center justify-center text-[10px] text-neutral-400">
+                      ○
+                    </div>
+                  </div>
+                </div>
+
+                {/* Middle: Idea 1, Idea 2, Idea 3 Preview Cards */}
+                <div className="flex items-center -space-x-4 sm:-space-x-6 hover:space-x-2 transition-all">
+                  {['Balanced Concept', 'Open Living', 'Vastu Priority'].map((title, idx) => (
+                    <div
+                      key={title}
+                      onClick={() => {
+                        if (designOptions[idx]) handleSelectConcept(designOptions[idx]);
+                      }}
+                      className="w-24 sm:w-28 bg-[#FAF8F5] rounded-2xl border border-[#EAE6DF] shadow-md p-2 hover:-translate-y-2 transition-all cursor-pointer group"
+                    >
+                      <div className="text-[10px] font-serif font-bold text-neutral-700 text-center mb-1">
+                        Idea {idx + 1}
+                      </div>
+                      <div className="rounded-xl overflow-hidden bg-white border border-[#EAE6DF]">
+                        <WatercolorFacade variant={idx === 0 ? 'modern_wood' : idx === 1 ? 'open_living' : 'vastu_priority'} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Right: Circular 1/3 Progress Ring */}
+                <div className="flex items-center justify-center shrink-0">
+                  <div className="relative w-16 h-16 rounded-full border-4 border-[#C99C6A] flex items-center justify-center">
+                    <span className="font-serif text-lg font-bold text-[#8C6033]">
+                      1/3
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* In-Progress Section Title */}
+            <div className="flex items-center gap-2 text-sm font-bold text-neutral-900">
+              <Layers className="w-4 h-4 text-neutral-600" />
+              <span>In-Progress ({designOptions.length || 1})</span>
+            </div>
+
+            {/* ==========================================================
+                VIEW MODE 1: Shapes & Rooms + 4-Step Stepper (Screenshot 1)
+               ========================================================== */}
+            {viewMode === 'stepper' && (
+              <div className="bg-white rounded-3xl border border-[#EAE6DF] shadow-xs p-6 sm:p-7 space-y-6">
+                
+                {/* Design Header: "Design 2", "Last Active", Author */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#F2EFE9]">
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-serif text-xl font-bold text-neutral-950">
+                      {designOptions.find(o => o.id === selectedOptionId)?.title || 'Design 2'}
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#FEF9C3] text-[#854D0E] border border-[#FEF08A]">
+                      Last Active
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-neutral-500">
+                    <div className="w-5 h-5 rounded-full bg-[#7C8B99] text-white text-[10px] font-bold flex items-center justify-center">
+                      N
+                    </div>
+                    <span>Narayan · updated moments ago</span>
+                  </div>
+                </div>
+
+                {/* Main Split: Left Shapes & Rooms Bubble Canvas, Right Stepper */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
+                  
+                  {/* Left: Shapes & Rooms View */}
+                  <div className="xl:col-span-7">
+                    <ShapesAndRoomsView 
+                      floorPlan={currentPlan}
+                      activeFloorLevel={activeFloorLevel}
+                      onSelectFloorLevel={(level) => setActiveFloorLevel(level)}
+                      onOpenStudio={() => navigate(`/projects/${project.id}/design`)}
+                    />
+                  </div>
+
+                  {/* Right: Design Stepper */}
+                  <div className="xl:col-span-5">
+                    <DesignStepper 
+                      projectId={project.id}
+                      currentStep="shapes"
+                      onOpenStudio={() => navigate(`/projects/${project.id}/design`)}
+                      onOpen3D={() => navigate(`/projects/${project.id}/3d`)}
+                    />
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+            {/* ==========================================================
+                VIEW MODE 2: Design Concept Cards Gallery (Screenshot 2)
+               ========================================================== */}
+            {viewMode === 'gallery' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {designOptions.map((opt, idx) => (
+                  <DesignConceptCard
+                    key={opt.id}
+                    option={opt}
+                    isSelected={opt.id === selectedOptionId}
+                    onSelect={handleSelectConcept}
+                    variant={idx === 0 ? 'modern_wood' : idx === 1 ? 'open_living' : 'vastu_priority'}
+                  />
+                ))}
+
+                {/* Start New Design Card */}
+                <StartNewDesignCard onClick={() => navigate('/projects/new')} />
+              </div>
+            )}
+
+          </main>
+
+          {/* =========================================================================
+              RIGHT COLUMN: Inspiration & Architectural Ideas (Cols 11-12)
+             ========================================================================= */}
+          <aside className="lg:col-span-2 space-y-5">
+            <div className="bg-white rounded-3xl p-5 border border-[#EAE6DF] shadow-xs space-y-4">
+              <h3 className="text-xs font-bold text-neutral-900 uppercase tracking-wider font-mono">
+                Inspiration (0)
+              </h3>
+
+              {/* Inspiration Card matching Screenshot 1 & 2 */}
+              <div className="group rounded-2xl border border-[#EAE6DF] bg-[#FAF8F5] p-3 text-center space-y-3 cursor-pointer hover:shadow-md transition-all">
+                <div className="rounded-xl overflow-hidden bg-white border border-[#EAE6DF]">
+                  <WatercolorFacade variant="modern_wood" />
+                </div>
+                
+                <div className="space-y-1">
+                  <div className="w-8 h-8 rounded-full bg-white border border-[#EAE6DF] text-neutral-700 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform shadow-2xs">
+                    <Plus className="w-4 h-4 stroke-[2]" />
+                  </div>
+                  <h4 className="font-serif text-sm font-semibold text-neutral-900">
+                    Explore Other Designs
+                  </h4>
+                  <p className="text-[11px] text-neutral-500">
+                    Modern wood facades & Indian living concepts
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Feature Direct Links */}
+            <div className="bg-white rounded-3xl p-4 border border-[#EAE6DF] shadow-xs space-y-2 text-xs">
+              <h4 className="font-mono text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-2">
+                Quick Tools
+              </h4>
+              <Link
+                to={`/projects/${project.id}/cost`}
+                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[#FAF8F5] text-neutral-700 hover:text-neutral-950 font-medium transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <IndianRupee className="w-3.5 h-3.5 text-neutral-500" />
+                  <span>Cost Estimate</span>
+                </div>
+                <ArrowRight className="w-3 h-3 text-neutral-400" />
+              </Link>
+              <Link
+                to={`/projects/${project.id}/boq`}
+                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[#FAF8F5] text-neutral-700 hover:text-neutral-950 font-medium transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <ScrollText className="w-3.5 h-3.5 text-neutral-500" />
+                  <span>BOQ Takeoff</span>
+                </div>
+                <ArrowRight className="w-3 h-3 text-neutral-400" />
+              </Link>
+              <Link
+                to={`/projects/${project.id}/export`}
+                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[#FAF8F5] text-neutral-700 hover:text-neutral-950 font-medium transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Download className="w-3.5 h-3.5 text-neutral-500" />
+                  <span>AutoCAD DXF & PDF</span>
+                </div>
+                <ArrowRight className="w-3 h-3 text-neutral-400" />
+              </Link>
+            </div>
+          </aside>
 
         </div>
 
       </div>
 
-      {/* Rename Modal */}
-      <RenameModal
-        isOpen={isRenameOpen}
-        initialName={project.name || 'Spano Ka Ghar'}
-        onRename={handleRenameConfirm}
-        onCancel={() => setIsRenameOpen(false)}
-      />
+      {/* =========================================================================
+          FLOATING AI ASSISTANT BUTTON (Blue Chat Icon matching Screenshot 1 & 2)
+         ========================================================================= */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => setIsAiAssistantOpen(!isAiAssistantOpen)}
+          className="w-13 h-13 rounded-full bg-[#0284C7] hover:bg-[#0369A1] text-white flex items-center justify-center shadow-2xl hover:scale-105 transition-all duration-200"
+          title="Drafted AI Architectural Assistant"
+        >
+          {isAiAssistantOpen ? (
+            <X className="w-6 h-6" />
+          ) : (
+            <MessageSquare className="w-6 h-6 fill-white stroke-none" />
+          )}
+        </button>
+      </div>
+
+      {/* Slide-out AI Assistant Drawer */}
+      {isAiAssistantOpen && (
+        <div className="fixed bottom-22 right-6 z-50 w-full max-w-md bg-white rounded-3xl shadow-2xl border border-[#EAE6DF] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-[#FAF8F5] px-5 py-4 border-b border-[#EAE6DF] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-[#0284C7] text-white flex items-center justify-center">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <h3 className="font-serif text-sm font-bold text-neutral-900">
+                Drafted AI Architectural Copilot
+              </h3>
+            </div>
+            <button
+              onClick={() => setIsAiAssistantOpen(false)}
+              className="text-neutral-400 hover:text-neutral-900"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="p-4 max-h-[500px] overflow-y-auto">
+            <NaturalLanguageAssistant
+              plan={currentPlan}
+              requirements={project.requirements}
+              onApplyMutation={(newPlan) => {
+                const updated = {
+                  ...project,
+                  design: newPlan,
+                };
+                saveActiveProject(updated);
+                showToast('Applied architectural mutation to layout!');
+                setIsAiAssistantOpen(false);
+              }}
+              onPreviewMutation={() => {}}
+              onClearPreview={() => {}}
+            />
+          </div>
+
+        </div>
+      )}
 
       {/* Invite Member Modal */}
-      {inviteModalOpen && (
-        <div className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-100">
-          <div className="bg-white rounded-2xl border border-sand-300 p-6 max-w-sm w-full shadow-elevated space-y-4">
-            <h3 className="font-serif text-lg font-bold text-ink">
-              Invite Team Member
-            </h3>
-            <p className="text-xs text-ink-muted">
-              Add a co-planner, architect, or family member to collaborate on this design.
+      {isInviteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 border border-[#EAE6DF] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-lg font-bold text-neutral-900">Invite Collaborator</h3>
+              <button onClick={() => setIsInviteModalOpen(false)} className="text-neutral-400 hover:text-neutral-800">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-neutral-500">
+              Invite your co-architect, client, or civil contractor to review this layout.
             </p>
-            <form onSubmit={handleInviteSubmit} className="space-y-3">
-              <input
-                type="email"
-                required
-                placeholder="colleague@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="w-full text-xs px-3.5 py-2.5 bg-sand-50 border border-sand-300 rounded-lg focus:outline-none focus:border-dark font-sans"
-              />
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setInviteModalOpen(false)}
-                  className="px-3.5 py-2 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-sand-100 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-xs font-semibold bg-dark hover:bg-dark-hover text-white rounded-lg shadow-subtle"
-                >
-                  Send Invite
-                </button>
-              </div>
-            </form>
+            <input
+              type="email"
+              placeholder="name@architecture.com"
+              className="w-full px-3.5 py-2 rounded-xl border border-[#DDD7CD] text-xs focus:outline-hidden focus:border-neutral-900"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setIsInviteModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-600 hover:bg-neutral-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setIsInviteModalOpen(false);
+                  showToast('Invitation sent!');
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-neutral-950 text-white hover:bg-neutral-800"
+              >
+                Send Invite
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { 
-  Box, 
-  RotateCcw, 
-  Compass, 
-  Layers, 
-  ShieldCheck, 
+import {
+  Box,
+  RotateCcw,
+  Compass,
+  Layers,
+  ShieldCheck,
   ArrowRight,
   Layout,
   IndianRupee,
@@ -50,21 +50,20 @@ export const VisualizationPage = () => {
 
   return (
     <div className="flex-1 flex flex-col bg-linen overflow-hidden h-[calc(100vh-4rem)] min-h-[600px]">
-      
+
       {/* Sub-header Toolbar */}
       <div className="bg-white border-b border-sand-300 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10">
-        
+
         {/* Left: Floor Level Isolation */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-ink-muted hidden sm:inline">View Floor:</span>
           <div className="flex items-center gap-1 bg-sand-100 p-1 rounded-xl border border-sand-200">
             <button
               onClick={() => setVisibleFloorLevel('all')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                visibleFloorLevel === 'all'
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${visibleFloorLevel === 'all'
                   ? 'bg-terracotta-500 text-white shadow-subtle'
                   : 'text-ink-muted hover:text-ink'
-              }`}
+                }`}
             >
               All Floors (G+1)
             </button>
@@ -72,11 +71,10 @@ export const VisualizationPage = () => {
               <button
                 key={f.level}
                 onClick={() => setVisibleFloorLevel(f.level)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                  visibleFloorLevel === f.level
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${visibleFloorLevel === f.level
                     ? 'bg-terracotta-500 text-white shadow-subtle'
                     : 'text-ink-muted hover:text-ink'
-                }`}
+                  }`}
               >
                 {f.label || `Level ${f.level}`}
               </button>

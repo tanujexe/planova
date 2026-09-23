@@ -80,10 +80,10 @@ export default {
         }
       },
       fontFamily: {
-        serif: ['"DM Serif Display"', '"Newsreader"', '"Playfair Display"', 'Georgia', 'serif'],
-        display: ['"DM Serif Display"', '"Newsreader"', '"Playfair Display"', 'Georgia', 'serif'],
-        sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'Inter', 'system-ui', 'monospace'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        serif: ['"Playfair Display"', 'Georgia', 'Cambria', 'serif'],
+        display: ['"Playfair Display"', 'Plus Jakarta Sans', 'serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       boxShadow: {
         'subtle': '0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04)',
