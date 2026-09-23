@@ -14,11 +14,109 @@ import {
   Move,
   RotateCw,
   Trash2,
-  Armchair
+  Armchair,
+  Sparkles
 } from 'lucide-react';
 import { validateRoomMutation } from '../../domain/constraints.js';
 import { CadDoorSymbol, CadWindowSymbol, CadDimensionString } from '../../lib/cadSymbols.jsx';
 import { CadFurnitureSymbol } from '../../lib/furnitureSymbols.jsx';
+
+export const getRoomFloorStyle = (room, isRealistic) => {
+  if (!isRealistic) {
+    return { backgroundColor: room.color || '#F8FAFC' };
+  }
+
+  const type = (room.type || '').toLowerCase();
+  
+  // Bedroom / Master Bedroom: Warm light oak wood planks
+  if (type.includes('bedroom') || type === 'master_bedroom') {
+    return {
+      backgroundColor: '#F3EDE2',
+      backgroundImage: `
+        repeating-linear-gradient(90deg, transparent 0px, transparent 18px, rgba(160, 130, 95, 0.15) 19px, rgba(160, 130, 95, 0.15) 20px),
+        repeating-linear-gradient(0deg, #F3EDE2 0px, #F3EDE2 90px, #EBE1D0 91px, #EBE1D0 92px)
+      `,
+    };
+  }
+
+  // Living / Dining / Hall: Elegant wide-plank Scandinavian natural wood
+  if (type === 'living' || type === 'dining' || type === 'foyer' || type === 'drawing') {
+    return {
+      backgroundColor: '#F4ECE1',
+      backgroundImage: `
+        repeating-linear-gradient(0deg, transparent 0px, transparent 22px, rgba(140, 110, 75, 0.14) 23px, rgba(140, 110, 75, 0.14) 24px),
+        repeating-linear-gradient(90deg, #F4ECE1 0px, #F4ECE1 110px, #EDE2D1 111px, #EDE2D1 112px)
+      `,
+    };
+  }
+
+  // Kitchen / Utility: Italian polished light marble tile
+  if (type === 'kitchen' || type === 'utility' || type === 'pantry') {
+    return {
+      backgroundColor: '#F8FAFC',
+      backgroundImage: `
+        radial-gradient(circle at 50% 50%, rgba(203, 213, 225, 0.4) 0%, transparent 60%),
+        repeating-linear-gradient(0deg, #F8FAFC 0px, #F8FAFC 28px, #E2E8F0 29px, #E2E8F0 30px),
+        repeating-linear-gradient(90deg, #F8FAFC 0px, #F8FAFC 28px, #E2E8F0 29px, #E2E8F0 30px)
+      `,
+    };
+  }
+
+  // Bathrooms: Clean cool marble porcelain tiles
+  if (type === 'bathroom' || type === 'toilet' || type === 'powder') {
+    return {
+      backgroundColor: '#F0F9FF',
+      backgroundImage: `
+        radial-gradient(circle at 40% 40%, rgba(186, 230, 253, 0.5) 0%, transparent 70%),
+        repeating-linear-gradient(0deg, #F0F9FF 0px, #F0F9FF 20px, #BAE6FD 21px, #BAE6FD 22px),
+        repeating-linear-gradient(90deg, #F0F9FF 0px, #F0F9FF 20px, #BAE6FD 21px, #BAE6FD 22px)
+      `,
+    };
+  }
+
+  // Balcony / Patio / Terrace / Deck: Stone pavers with texture
+  if (type === 'balcony' || type === 'terrace' || type === 'patio' || type === 'deck') {
+    return {
+      backgroundColor: '#E2E8F0',
+      backgroundImage: `
+        radial-gradient(#94A3B8 15%, transparent 16%),
+        radial-gradient(#94A3B8 15%, transparent 16%)
+      `,
+      backgroundPosition: '0 0, 8px 8px',
+      backgroundSize: '16px 16px',
+    };
+  }
+
+  // Parking / Garage: Polished concrete screed floor
+  if (type === 'parking' || type === 'garage' || type === 'carporch') {
+    return {
+      backgroundColor: '#CBD5E1',
+      backgroundImage: 'linear-gradient(135deg, #E2E8F0 25%, #CBD5E1 75%)',
+    };
+  }
+
+  // Pooja: Sacred warm ivory & sandalwood
+  if (type === 'pooja') {
+    return {
+      backgroundColor: '#FEF9C3',
+      backgroundImage: 'radial-gradient(circle, #FEF08A 10%, #FEF9C3 80%)',
+    };
+  }
+
+  // Study / Office: Warm amber parquet
+  if (type === 'study' || type === 'office') {
+    return {
+      backgroundColor: '#EDE3D2',
+      backgroundImage: `
+        repeating-linear-gradient(45deg, #E2D5BE 0px, #E2D5BE 10px, #EDE3D2 10px, #EDE3D2 20px)
+      `,
+    };
+  }
+
+  return {
+    backgroundColor: room.color || '#F8FAFC',
+  };
+};
 
 export const PlanCanvas = ({
   floorPlan,
@@ -26,6 +124,7 @@ export const PlanCanvas = ({
   selectedRoomId = null,
   highlightedRoomIds = [],
   selectedFurnitureId = null,
+  renderMode = 'cad', // 'cad' | 'rendered'
   onSelectRoom,
   onUpdateRoom,
   onSelectFurniture,
@@ -40,6 +139,7 @@ export const PlanCanvas = ({
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
 
   // Layer Visibility Toggles
+  const [showRealisticRender, setShowRealisticRender] = useState(renderMode === 'rendered');
   const [showDimensions, setShowDimensions] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [showOpenings, setShowOpenings] = useState(true);
@@ -47,6 +147,14 @@ export const PlanCanvas = ({
   const [showGrid, setShowGrid] = useState(true);
   const [showWallThickness, setShowWallThickness] = useState(true);
   const [showLayerMenu, setShowLayerMenu] = useState(false);
+
+  useEffect(() => {
+    if (renderMode === 'rendered') {
+      setShowRealisticRender(true);
+    } else if (renderMode === 'cad') {
+      setShowRealisticRender(false);
+    }
+  }, [renderMode]);
 
   // Direct Drag / Resize states for Rooms
   const [draggingRoomId, setDraggingRoomId] = useState(null);
@@ -303,6 +411,22 @@ export const PlanCanvas = ({
 
         <div className="h-4 w-px bg-sand-300" />
 
+        {/* Realistic Architectural Render Mode Toggle */}
+        <button
+          onClick={() => setShowRealisticRender(!showRealisticRender)}
+          className={`p-1.5 px-2.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${
+            showRealisticRender
+              ? 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-500/30'
+              : 'text-ink-muted hover:text-ink hover:bg-sand-100'
+          }`}
+          title="Toggle Full Realistic Rendered Floor Plan View"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>{showRealisticRender ? 'Rendered Plan' : 'CAD Mode'}</span>
+        </button>
+
+        <div className="h-4 w-px bg-sand-300" />
+
         {/* Layer Visibility Menu */}
         <div className="relative">
           <button
@@ -515,6 +639,8 @@ export const PlanCanvas = ({
             const isHighlighted = highlightedRoomIds.includes(room.id);
             const roomArea = Math.round(room.width * room.height);
 
+            const floorStyle = getRoomFloorStyle(room, showRealisticRender);
+
             return (
               <div
                 key={room.id}
@@ -524,22 +650,30 @@ export const PlanCanvas = ({
                   top: `${room.y * BASE_PIXELS}px`,
                   width: `${room.width * BASE_PIXELS}px`,
                   height: `${room.height * BASE_PIXELS}px`,
-                  backgroundColor: room.color || '#F8FAFC',
+                  ...floorStyle,
                 }}
                 className={`absolute transition-shadow flex flex-col justify-between p-2 select-none group cursor-move ${
-                  showWallThickness ? 'border-[3px] border-slate-800' : 'border-2 border-ink'
+                  showRealisticRender
+                    ? 'border-[4px] border-slate-950 shadow-inner'
+                    : showWallThickness
+                    ? 'border-[3px] border-slate-800'
+                    : 'border-2 border-ink'
                 } ${
                   isSelected
                     ? 'border-sage-600 ring-4 ring-sage-500/25 z-10 shadow-xl'
                     : isHighlighted
                     ? 'border-terracotta ring-4 ring-terracotta/30 z-10 animate-pulse'
+                    : showRealisticRender
+                    ? 'hover:border-slate-800'
                     : 'hover:border-sage-500 hover:shadow-md'
                 }`}
               >
                 {/* Room Name Header & Vastu Badge */}
                 {showLabels && (
                   <div className="flex items-center justify-between pointer-events-none">
-                    <span className="font-display font-bold text-[11px] leading-tight text-slate-900 truncate pr-1">
+                    <span className={`font-display font-bold text-[11px] leading-tight truncate pr-1 ${
+                      showRealisticRender ? 'text-slate-900 bg-white/80 px-1.5 py-0.5 rounded shadow-2xs backdrop-blur-xs' : 'text-slate-900'
+                    }`}>
                       {room.label}
                     </span>
                     {room.type === 'pooja' && (
@@ -557,9 +691,13 @@ export const PlanCanvas = ({
 
                 {/* Room Dimensions & Area Badge */}
                 {showLabels && (
-                  <div className="font-sans text-[10px] font-semibold text-slate-600 flex items-center justify-between pt-1 border-t border-slate-900/10 pointer-events-none">
-                    <span>{room.width}&apos; × {room.height}&apos;</span>
-                    <span className="font-bold text-slate-900 bg-white/70 px-1 py-0.5 rounded shadow-2xs">
+                  <div className={`font-sans text-[10px] font-semibold flex items-center justify-between pt-1 pointer-events-none ${
+                    showRealisticRender ? 'text-slate-800' : 'text-slate-600 border-t border-slate-900/10'
+                  }`}>
+                    <span className={showRealisticRender ? 'bg-white/70 px-1 py-0.5 rounded text-[9px]' : ''}>
+                      {room.width}&apos; × {room.height}&apos;
+                    </span>
+                    <span className="font-bold text-slate-900 bg-white/90 px-1.5 py-0.5 rounded shadow-2xs text-[9px]">
                       {roomArea} sq.ft
                     </span>
                   </div>

@@ -90,7 +90,7 @@ export const NaturalLanguageAssistant = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white">
+    <div className="flex-1 flex flex-col h-full bg-white overflow-hidden">
       
       {/* Header */}
       <div className="p-4 border-b border-sand-200 shrink-0">
@@ -109,7 +109,7 @@ export const NaturalLanguageAssistant = ({
         </div>
       </div>
 
-      {/* Messages Timeline */}
+      {/* Messages Timeline (Independently Scrollable) */}
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
         
         {historyLog.map((msg, i) => (
@@ -215,7 +215,7 @@ export const NaturalLanguageAssistant = ({
           e.preventDefault();
           handleSubmit();
         }}
-        className="p-3 border-t border-sand-200 bg-sand-50"
+        className="p-3 border-t border-sand-200 bg-sand-50 shrink-0"
       >
         <div className="flex gap-2">
           <input

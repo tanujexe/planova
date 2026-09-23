@@ -202,8 +202,20 @@ export const WorkspacePage = () => {
     showToast(`Added ${def.label} to floor!`);
   };
 
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode);
+    if (mode === 'rendered') {
+      const floorFurn = currentFloor.furniture || [];
+      const roomFurn = (currentFloor.rooms || []).flatMap(r => r.furniture || []);
+      if (floorFurn.length + roomFurn.length === 0) {
+        autoFurnishFloor(activeFloorLevel);
+        showToast('Auto-Furnished layout for Full Architectural Render! ✨');
+      }
+    }
+  };
+
   return (
-    <div className="flex-1 flex flex-col bg-linen overflow-hidden h-[calc(100vh-4rem)] min-h-[600px]">
+    <div className="flex-1 min-h-0 flex flex-col bg-linen overflow-hidden h-full w-full">
       
       {/* Toast Alert */}
       {toastMsg && (
@@ -307,21 +319,23 @@ export const WorkspacePage = () => {
         </div>
       </div>
 
-      {/* Main Studio Viewport Area */}
-      <div className="flex-1 flex overflow-hidden relative">
+      {/* Main Studio 3-Column Independent Viewport Area */}
+      <div className="flex-1 min-h-0 flex overflow-hidden relative w-full">
         
-        {/* Left Panel: Rooms Schedule */}
-        <aside className="w-60 bg-white border-r border-sand-300 p-4 hidden xl:flex flex-col gap-3 overflow-y-auto shrink-0">
-          <div className="flex items-center justify-between pb-2 border-b border-sand-200">
-            <h3 className="font-display font-bold text-xs uppercase tracking-wider text-ink-muted">
+        {/* 1. Left Section: Rooms Schedule (Independent Scrollable Column) */}
+        <aside className="w-64 bg-white border-r border-sand-300 flex flex-col shrink-0 h-full overflow-hidden z-10 shadow-xs">
+          {/* Fixed Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-sand-200 shrink-0 bg-sand-50/50">
+            <h3 className="font-display font-bold text-xs uppercase tracking-wider text-ink">
               Rooms Schedule
             </h3>
-            <span className="text-[10px] font-mono text-sage-800 bg-sage-100 px-1.5 py-0.5 rounded font-bold border border-sage-200">
+            <span className="text-[10px] font-mono text-sage-800 bg-sage-100 px-2 py-0.5 rounded-full font-bold border border-sage-300">
               {rooms.length} Spaces
             </span>
           </div>
 
-          <div className="space-y-2 overflow-y-auto flex-1">
+          {/* Scrollable Room List */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {rooms.map((room) => {
               const isSelected = selectedRoomId === room.id;
               const isHighlighted = highlightedRoomIds.includes(room.id);
@@ -339,7 +353,7 @@ export const WorkspacePage = () => {
                       ? 'bg-sage-50 border-sage-500 ring-2 ring-sage-500/20 shadow-subtle'
                       : isHighlighted
                       ? 'bg-terracotta-light/60 border-terracotta ring-2 ring-terracotta/30 animate-pulse'
-                      : 'bg-linen border-sand-200 hover:border-sand-300 text-ink'
+                      : 'bg-linen border-sand-200 hover:border-sand-300 hover:bg-sand-50 text-ink'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -362,17 +376,18 @@ export const WorkspacePage = () => {
           </div>
         </aside>
 
-        {/* Center Canvas Area (2D, Split, or 3D) */}
-        <main className="flex-1 relative flex overflow-hidden">
-          {/* 2D Plan View */}
-          {(viewMode === '2d' || viewMode === 'split') && (
-            <div className={`relative h-full ${viewMode === 'split' ? 'w-1/2 border-r-2 border-slate-700' : 'w-full'}`}>
+        {/* 2. Center Section: Canvas / 2D / 3D Blueprint Area (Independent Viewport) */}
+        <main className="flex-1 h-full min-w-0 relative flex flex-col overflow-hidden bg-linen">
+          {/* 2D Plan View / Full Furnished Rendered Architectural View */}
+          {(viewMode === '2d' || viewMode === 'rendered' || viewMode === 'split') && (
+            <div className={`relative h-full ${viewMode === 'split' ? 'w-1/2 border-r border-[#EAE6DF]' : 'w-full'}`}>
               <PlanCanvas
                 floorPlan={plan}
                 activeFloorLevel={activeFloorLevel}
                 selectedRoomId={selectedRoomId}
                 selectedFurnitureId={selectedFurnitureId}
                 highlightedRoomIds={highlightedRoomIds}
+                renderMode={viewMode === 'rendered' ? 'rendered' : 'cad'}
                 onSelectRoom={(room) => {
                   setSelectedRoomId(room.id);
                   setSelectedFurnitureId(null);
@@ -414,18 +429,22 @@ export const WorkspacePage = () => {
             onSelectTool={setActiveTool}
             onAddRoom={handleAddRoomPreset}
             onAutoStage={handleAutoStage}
+            isStagingOpen={isFurnitureDrawerOpen}
             onToggleStagingDrawer={() => setIsFurnitureDrawerOpen(!isFurnitureDrawerOpen)}
             viewMode={viewMode}
-            onViewModeChange={setViewMode}
+            onViewModeChange={handleViewModeChange}
           />
         </main>
 
-        {/* Right Panel: AI Assistant & Room Inspector */}
-        <aside className="w-80 bg-white border-l border-sand-300 flex flex-col shrink-0 overflow-y-auto">
+        {/* 3. Right Section: AI Copilot Chat / Room Inspector (Independent Scrollable Column) */}
+        <aside className="w-80 lg:w-96 bg-white border-l border-sand-300 flex flex-col shrink-0 h-full overflow-hidden z-10 shadow-xs">
           {selectedRoom ? (
-            <div className="p-4 flex-1">
-              <div className="flex items-center justify-between pb-3 mb-3 border-b border-sand-200">
-                <span className="font-display font-bold text-xs uppercase text-ink-muted">Room Inspector</span>
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
+              {/* Fixed Inspector Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-sand-200 shrink-0 bg-sand-50/50">
+                <span className="font-display font-bold text-xs uppercase text-ink tracking-wider">
+                  Room Inspector
+                </span>
                 <button
                   onClick={() => {
                     removeRoom(activeFloorLevel, selectedRoom.id);
@@ -439,12 +458,15 @@ export const WorkspacePage = () => {
                   <span>Delete</span>
                 </button>
               </div>
-              <RoomInspector
-                room={selectedRoom}
-                plot={plan.plot || { width: 30, length: 50 }}
-                onUpdateRoom={handleRoomUpdate}
-                onClose={() => setSelectedRoomId(null)}
-              />
+              {/* Scrollable Inspector Controls */}
+              <div className="flex-1 overflow-y-auto p-4">
+                <RoomInspector
+                  room={selectedRoom}
+                  plot={plan.plot || { width: 30, length: 50 }}
+                  onUpdateRoom={handleRoomUpdate}
+                  onClose={() => setSelectedRoomId(null)}
+                />
+              </div>
             </div>
           ) : (
             <NaturalLanguageAssistant

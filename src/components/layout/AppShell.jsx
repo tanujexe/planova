@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Building2, 
-  ChevronDown, 
-  Plus, 
-  BookOpen, 
-  Zap, 
-  Layers, 
-  Layout, 
-  Box, 
-  IndianRupee, 
-  ScrollText, 
-  Download, 
-  Check, 
+import {
+  Building2,
+  ChevronDown,
+  Plus,
+  BookOpen,
+  Zap,
+  Layers,
+  Layout,
+  Box,
+  IndianRupee,
+  ScrollText,
+  Download,
+  Check,
   Home,
   Menu,
   X
@@ -60,13 +60,13 @@ export const AppShell = ({ children }) => {
 
   const navItems = isProjectView
     ? [
-        { label: 'My Studio', path: `/projects/${currentProjectId}`, icon: Building2, end: true },
-        { label: '2D Blueprint', path: `/projects/${currentProjectId}/design`, icon: Layout },
-        { label: '3D Walkthrough', path: `/projects/${currentProjectId}/3d`, icon: Box },
-        { label: 'Cost & Budget', path: `/projects/${currentProjectId}/cost`, icon: IndianRupee },
-        { label: 'BOQ Takeoff', path: `/projects/${currentProjectId}/boq`, icon: ScrollText },
-        { label: 'Export PDF/DXF', path: `/projects/${currentProjectId}/export`, icon: Download },
-      ]
+      { label: 'My Studio', path: `/projects/${currentProjectId}`, icon: Building2, end: true },
+      { label: '2D Blueprint', path: `/projects/${currentProjectId}/design`, icon: Layout },
+      { label: '3D Walkthrough', path: `/projects/${currentProjectId}/3d`, icon: Box },
+      { label: 'Cost & Budget', path: `/projects/${currentProjectId}/cost`, icon: IndianRupee },
+      { label: 'BOQ Takeoff', path: `/projects/${currentProjectId}/boq`, icon: ScrollText },
+      { label: 'Export PDF/DXF', path: `/projects/${currentProjectId}/export`, icon: Download },
+    ]
     : [];
 
   const handleSelectProject = (projId) => {
@@ -76,19 +76,19 @@ export const AppShell = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F7F5F0] text-neutral-900 font-sans selection:bg-neutral-200">
-      
+    <div className="h-screen flex flex-col bg-[#F7F5F0] text-neutral-900 font-sans selection:bg-neutral-200 overflow-hidden">
+
       {/* Drafted Studio Top Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#EAE6DF]">
+      <header className="shrink-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#EAE6DF]">
         <div className="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-3">
-            
+
             {/* Left: Brand Logo & Studio Tab & Project Selector */}
             <div className="flex items-center gap-4 sm:gap-6">
-              
+
               {/* Drafted Logo (Matching Screenshots Serif Branding) */}
-              <Link 
-                to={currentProjectId ? `/projects/${currentProjectId}` : "/"} 
+              <Link
+                to={currentProjectId ? `/projects/${currentProjectId}` : "/"}
                 className="flex items-center gap-2 group focus:outline-hidden"
               >
                 <span className="font-serif text-2xl font-bold tracking-tight text-neutral-950">
@@ -187,7 +187,7 @@ export const AppShell = ({ children }) => {
 
             {/* Right: Learn Button, Credits Meter & User Avatar */}
             <div className="flex items-center gap-3 sm:gap-4">
-              
+
               {/* "📖 Learn" Guide Button */}
               <button
                 onClick={() => setIsLearnModalOpen(true)}
@@ -207,7 +207,7 @@ export const AppShell = ({ children }) => {
               </div>
 
               {/* User Avatar Circle "N" */}
-              <div 
+              <div
                 className="w-8 h-8 rounded-full bg-[#7C8B99] text-white flex items-center justify-center font-bold text-xs shadow-xs select-none"
                 title="Narayan (Architect)"
               >
@@ -256,14 +256,14 @@ export const AppShell = ({ children }) => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 min-h-0 flex flex-col overflow-y-auto">
         {children}
       </main>
 
       {/* Learn Guide Modal */}
-      <LearnModal 
-        isOpen={isLearnModalOpen} 
-        onClose={() => setIsLearnModalOpen(false)} 
+      <LearnModal
+        isOpen={isLearnModalOpen}
+        onClose={() => setIsLearnModalOpen(false)}
       />
 
     </div>
