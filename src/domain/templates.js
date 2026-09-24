@@ -32,14 +32,14 @@ const getColor = (type) => ROOM_COLORS[type] || '#EFE8DC';
  * Calculates building setbacks based on plot dimensions
  */
 const calculateSetbacks = (plotW, plotL, facing = 'north') => {
-  const sideSetback = plotW >= 40 ? 3 : 2;
-  const rearSetback = plotL >= 50 ? 3 : 2;
-  const frontSetback = plotL >= 50 ? 4 : 3;
+  const sideSetback = plotW >= 40 ? 3 : (plotW >= 24 ? 2 : 1.5);
+  const rearSetback = plotL >= 50 ? 3 : (plotL >= 30 ? 2 : 1.5);
+  const frontSetback = plotL >= 50 ? 4 : (plotL >= 30 ? 3 : 2);
 
   const leftX = sideSetback;
   const topY = facing === 'south' ? rearSetback : frontSetback;
-  const usableW = Math.max(16, plotW - sideSetback * 2);
-  const usableL = Math.max(20, plotL - (frontSetback + rearSetback));
+  const usableW = Math.max(10, Math.floor(plotW - sideSetback * 2));
+  const usableL = Math.max(12, Math.floor(plotL - (frontSetback + rearSetback)));
 
   return { leftX, topY, usableW, usableL, frontSetback, rearSetback, sideSetback };
 };
@@ -62,6 +62,42 @@ const parseRequirements = (requirements, bhkCount) => {
 };
 
 /**
+ * Ensures strict plot boundary containment and opening sanitization
+ */
+export const ensurePlanContainment = (plan) => {
+  if (!plan || !plan.plot || !plan.floors) return plan;
+
+  const plotW = Number(plan.plot.width) || 30;
+  const plotL = Number(plan.plot.length) || 50;
+
+  plan.floors.forEach((floor) => {
+    (floor.rooms || []).forEach((room) => {
+      if (room.x < 0) room.x = 0;
+      if (room.y < 0) room.y = 0;
+
+      if (room.x + room.width > plotW) {
+        room.width = Math.max(3, Number((plotW - room.x).toFixed(1)));
+      }
+      if (room.y + room.height > plotL) {
+        room.height = Math.max(3, Number((plotL - room.y).toFixed(1)));
+      }
+    });
+
+    (floor.openings || []).forEach((op) => {
+      const room = (floor.rooms || []).find((r) => r.id === op.wallRoomId);
+      if (room) {
+        const wallLen = (op.wallSide === 'top' || op.wallSide === 'bottom') ? room.width : room.height;
+        if (op.offset + op.width > wallLen) {
+          op.offset = Math.max(0.5, Number((wallLen - op.width - 0.5).toFixed(1)));
+        }
+      }
+    });
+  });
+
+  return plan;
+};
+
+/**
  * 1. BALANCED LAYOUT GENERATOR (Dynamic, Proportional, Multi-Floor)
  */
 export const generateBalancedLayout = (plot, requirements = {}) => {
@@ -73,18 +109,21 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
   const { leftX, topY, usableW, usableL } = calculateSetbacks(plotW, plotL, facing);
   const req = parseRequirements(requirements, requirements.bhk || (floorsCount > 1 ? 3 : 2));
 
-  // --- Ground Floor Layout ---
+  const isShallow = usableL < 28;
+  const frontH = isShallow 
+    ? Math.max(6, Math.floor(usableL * 0.42)) 
+    : Math.min(14, Math.max(7, Math.floor(usableL * 0.25)));
+  const middleH = isShallow ? 0 : Math.min(18, Math.max(10, Math.floor(usableL * 0.38)));
+  const rearH = isShallow ? (usableL - frontH) : (usableL - (frontH + middleH));
+
+  const parkW = Math.max(4, Math.floor(usableW * 0.42));
+  const foyerW = Math.max(3, Math.floor((usableW - parkW) * 0.55));
+  const poojaW = Math.max(3, usableW - parkW - foyerW);
+
   const gRooms = [];
   const gOpenings = [];
 
   // Front Zone: Parking & Entrance Foyer & Pooja
-  const parkW = Math.min(12, Math.round(usableW * 0.42));
-  const parkH = Math.min(15, Math.max(12, Math.round(usableL * 0.28)));
-  const foyerW = Math.round((usableW - parkW) * 0.55);
-  const poojaW = usableW - parkW - foyerW;
-  const foyerH = Math.min(8, Math.round(parkH * 0.55));
-
-  // Car Parking Bay
   const rmParkId = generateId('rm_park');
   gRooms.push({
     id: rmParkId,
@@ -93,12 +132,11 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
     x: leftX,
     y: topY,
     width: parkW,
-    height: parkH,
+    height: frontH,
     floor: 0,
     color: getColor('parking'),
   });
 
-  // Entrance Verandah / Foyer
   const rmFoyerId = generateId('rm_foyer');
   gRooms.push({
     id: rmFoyerId,
@@ -107,13 +145,12 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
     x: leftX + parkW,
     y: topY,
     width: foyerW,
-    height: foyerH,
+    height: frontH,
     floor: 0,
     color: getColor('foyer'),
   });
-  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmFoyerId, wallSide: 'top', offset: 2, width: 3.5 });
+  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmFoyerId, wallSide: 'top', offset: 1.5, width: 3.0 });
 
-  // Sacred Pooja Room (Ishanya / North-East)
   const rmPoojaId = generateId('rm_pooja');
   gRooms.push({
     id: rmPoojaId,
@@ -122,84 +159,150 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
     x: leftX + parkW + foyerW,
     y: topY,
     width: poojaW,
-    height: foyerH,
+    height: frontH,
     floor: 0,
     color: getColor('pooja'),
   });
 
-  // Central Zone: Grand Living & Dining Hall + Internal Staircase
-  const stairW = parkW;
-  const stairH = Math.min(10, Math.max(8, Math.round(usableL * 0.2)));
-  const stairY = topY + parkH;
+  if (isShallow) {
+    // 2-Tier Layout for shallow plots
+    const rearY = topY + frontH;
+    if (floorsCount >= 2) {
+      const rmStairId = generateId('rm_stair');
+      gRooms.push({
+        id: rmStairId,
+        type: 'staircase',
+        label: 'Internal Staircase',
+        x: leftX,
+        y: rearY,
+        width: parkW,
+        height: rearH,
+        floor: 0,
+        color: getColor('staircase'),
+      });
 
-  const livingW = usableW - parkW;
-  const livingH = Math.max(14, Math.round(usableL * 0.36));
-  const livingY = topY + foyerH;
+      const livingW = Math.floor((usableW - parkW) * 0.58);
+      const kitchenW = usableW - parkW - livingW;
 
-  const rmLivingId = generateId('rm_living');
-  gRooms.push({
-    id: rmLivingId,
-    type: 'living',
-    label: 'Living & Dining Hall',
-    x: leftX + parkW,
-    y: livingY,
-    width: livingW,
-    height: livingH,
-    floor: 0,
-    color: getColor('living'),
-  });
-  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmLivingId, wallSide: 'top', offset: 3, width: 4.0 });
-  gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmLivingId, wallSide: 'right', offset: 4, width: 5.0 });
+      const rmLivingId = generateId('rm_living');
+      gRooms.push({
+        id: rmLivingId,
+        type: 'living',
+        label: 'Living & Dining Hall',
+        x: leftX + parkW,
+        y: rearY,
+        width: livingW,
+        height: rearH,
+        floor: 0,
+        color: getColor('living'),
+      });
+      gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmLivingId, wallSide: 'bottom', offset: 2, width: 4.0 });
 
-  // Internal Staircase (if multi-floor) or Guest Powder Room
-  const rmStairId = generateId('rm_stair');
-  gRooms.push({
-    id: rmStairId,
-    type: floorsCount > 1 ? 'staircase' : 'study',
-    label: floorsCount > 1 ? 'Internal Staircase' : 'Study / Home Office',
-    x: leftX,
-    y: stairY,
-    width: stairW,
-    height: stairH,
-    floor: 0,
-    color: getColor(floorsCount > 1 ? 'staircase' : 'study'),
-  });
+      const rmKitchenId = generateId('rm_kitchen');
+      gRooms.push({
+        id: rmKitchenId,
+        type: 'kitchen',
+        label: 'Modular Kitchen & Utility',
+        x: leftX + parkW + livingW,
+        y: rearY,
+        width: kitchenW,
+        height: rearH,
+        floor: 0,
+        color: getColor('kitchen'),
+      });
+      gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmKitchenId, wallSide: 'right', offset: 2, width: 3.5 });
+    } else {
+      const livingW = Math.floor(usableW * 0.54);
+      const kitchenW = usableW - livingW;
 
-  // Rear Zone: Master Bedroom Suite & Modular Kitchen
-  const rearY = Math.max(stairY + stairH, livingY + livingH);
-  const rearH = Math.max(12, usableL - (rearY - topY));
-  const masterW = Math.round(usableW * 0.54);
-  const kitchenW = usableW - masterW;
+      const rmLivingId = generateId('rm_living');
+      gRooms.push({
+        id: rmLivingId,
+        type: 'living',
+        label: 'Living & Dining Hall',
+        x: leftX,
+        y: rearY,
+        width: livingW,
+        height: rearH,
+        floor: 0,
+        color: getColor('living'),
+      });
 
-  const rmMasterId = generateId('rm_master');
-  gRooms.push({
-    id: rmMasterId,
-    type: 'master_bedroom',
-    label: 'Master Bedroom',
-    x: leftX,
-    y: rearY,
-    width: masterW,
-    height: rearH,
-    floor: 0,
-    color: getColor('master_bedroom'),
-  });
-  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmMasterId, wallSide: 'top', offset: 2.5, width: 3.0 });
-  gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmMasterId, wallSide: 'left', offset: 3, width: 4.0 });
+      const rmMasterId = generateId('rm_master');
+      gRooms.push({
+        id: rmMasterId,
+        type: 'master_bedroom',
+        label: 'Master Bedroom',
+        x: leftX + livingW,
+        y: rearY,
+        width: kitchenW,
+        height: rearH,
+        floor: 0,
+        color: getColor('master_bedroom'),
+      });
+    }
+  } else {
+    // 3-Tier Layout for deep plots
+    const middleY = topY + frontH;
+    const rmStairId = generateId('rm_stair');
+    gRooms.push({
+      id: rmStairId,
+      type: floorsCount > 1 ? 'staircase' : 'study',
+      label: floorsCount > 1 ? 'Internal Staircase' : 'Study / Home Office',
+      x: leftX,
+      y: middleY,
+      width: parkW,
+      height: middleH,
+      floor: 0,
+      color: getColor(floorsCount > 1 ? 'staircase' : 'study'),
+    });
 
-  const rmKitchenId = generateId('rm_kitchen');
-  gRooms.push({
-    id: rmKitchenId,
-    type: 'kitchen',
-    label: 'Kitchen & Utility',
-    x: leftX + masterW,
-    y: rearY,
-    width: kitchenW,
-    height: rearH,
-    floor: 0,
-    color: getColor('kitchen'),
-  });
-  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmKitchenId, wallSide: 'top', offset: 2, width: 3.0 });
-  gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmKitchenId, wallSide: 'right', offset: 3, width: 4.0 });
+    const rmLivingId = generateId('rm_living');
+    gRooms.push({
+      id: rmLivingId,
+      type: 'living',
+      label: 'Living & Dining Hall',
+      x: leftX + parkW,
+      y: middleY,
+      width: usableW - parkW,
+      height: middleH,
+      floor: 0,
+      color: getColor('living'),
+    });
+    gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmLivingId, wallSide: 'right', offset: 2, width: 4.5 });
+
+    const rearY = middleY + middleH;
+    const masterW = Math.floor(usableW * 0.54);
+    const kitchenW = usableW - masterW;
+
+    const rmMasterId = generateId('rm_master');
+    gRooms.push({
+      id: rmMasterId,
+      type: 'master_bedroom',
+      label: 'Master Bedroom',
+      x: leftX,
+      y: rearY,
+      width: masterW,
+      height: rearH,
+      floor: 0,
+      color: getColor('master_bedroom'),
+    });
+    gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmMasterId, wallSide: 'left', offset: 2, width: 4.0 });
+
+    const rmKitchenId = generateId('rm_kitchen');
+    gRooms.push({
+      id: rmKitchenId,
+      type: 'kitchen',
+      label: 'Kitchen & Utility',
+      x: leftX + masterW,
+      y: rearY,
+      width: kitchenW,
+      height: rearH,
+      floor: 0,
+      color: getColor('kitchen'),
+    });
+    gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmKitchenId, wallSide: 'right', offset: 2, width: 4.0 });
+  }
 
   const floors = [
     {
@@ -210,96 +313,158 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
     },
   ];
 
-  // --- First Floor Layout (if G+1 or higher) ---
+  // First Floor Layout (if G+1 or higher)
   if (floorsCount >= 2) {
     const f1Rooms = [];
     const f1Openings = [];
 
-    // Front: Terrace Balcony & Upper Family Lounge
-    const balconyW = Math.round(usableW * 0.48);
-    const balconyH = Math.min(10, Math.round(usableL * 0.22));
-    const loungeW = usableW - balconyW;
-    const loungeH = Math.min(14, Math.round(usableL * 0.3));
+    if (isShallow) {
+      // 2-Tier First Floor
+      const rmStairF1Id = generateId('rm_stair_f1');
+      f1Rooms.push({
+        id: rmStairF1Id,
+        type: 'staircase',
+        label: 'Staircase Landing',
+        x: leftX,
+        y: topY,
+        width: parkW,
+        height: frontH,
+        floor: 1,
+        color: getColor('staircase'),
+      });
 
-    const rmBalconyId = generateId('rm_balcony');
-    f1Rooms.push({
-      id: rmBalconyId,
-      type: 'balcony',
-      label: 'Front Terrace Balcony',
-      x: leftX,
-      y: topY,
-      width: balconyW,
-      height: balconyH,
-      floor: 1,
-      color: getColor('balcony'),
-    });
-    f1Openings.push({ id: generateId('op'), type: 'door', wallRoomId: rmBalconyId, wallSide: 'right', offset: 2, width: 3.0 });
+      const rmBalconyId = generateId('rm_balcony');
+      f1Rooms.push({
+        id: rmBalconyId,
+        type: 'balcony',
+        label: 'Front Terrace Balcony',
+        x: leftX + parkW,
+        y: topY,
+        width: usableW - parkW,
+        height: frontH,
+        floor: 1,
+        color: getColor('balcony'),
+      });
 
-    const rmLoungeId = generateId('rm_lounge');
-    f1Rooms.push({
-      id: rmLoungeId,
-      type: 'living',
-      label: 'Upper Family Lounge',
-      x: leftX + balconyW,
-      y: topY,
-      width: loungeW,
-      height: loungeH,
-      floor: 1,
-      color: getColor('living'),
-    });
-    f1Openings.push({ id: generateId('op'), type: 'window', wallRoomId: rmLoungeId, wallSide: 'top', offset: 3, width: 4.0 });
+      const rearY = topY + frontH;
+      const bed2W = Math.floor(usableW * 0.54);
+      const bed3W = usableW - bed2W;
 
-    // Middle: Staircase Landing & Bedroom 2
-    const f1StairH = Math.min(10, Math.max(8, Math.round(usableL * 0.2)));
-    const f1StairY = topY + balconyH;
-    const rmStairF1Id = generateId('rm_stair_f1');
-    f1Rooms.push({
-      id: rmStairF1Id,
-      type: 'staircase',
-      label: 'Staircase Landing',
-      x: leftX,
-      y: f1StairY,
-      width: balconyW,
-      height: f1StairH,
-      floor: 1,
-      color: getColor('staircase'),
-    });
+      const rmBed2Id = generateId('rm_bed2');
+      f1Rooms.push({
+        id: rmBed2Id,
+        type: 'master_bedroom',
+        label: 'Master Bedroom Suite',
+        x: leftX,
+        y: rearY,
+        width: bed2W,
+        height: rearH,
+        floor: 1,
+        color: getColor('master_bedroom'),
+      });
+      f1Openings.push({ id: generateId('op'), type: 'window', wallRoomId: rmBed2Id, wallSide: 'left', offset: 2, width: 4.0 });
 
-    // Rear: Bedroom 2 & Bedroom 3
-    const f1RearY = Math.max(f1StairY + f1StairH, topY + loungeH);
-    const f1RearH = Math.max(12, usableL - (f1RearY - topY));
-    const bed2W = Math.round(usableW * 0.5);
-    const bed3W = usableW - bed2W;
+      const rmBed3Id = generateId('rm_bed3');
+      f1Rooms.push({
+        id: rmBed3Id,
+        type: 'bedroom',
+        label: "Bedroom 2 (Kids' Room)",
+        x: leftX + bed2W,
+        y: rearY,
+        width: bed3W,
+        height: rearH,
+        floor: 1,
+        color: getColor('bedroom'),
+      });
+      f1Openings.push({ id: generateId('op'), type: 'window', wallRoomId: rmBed3Id, wallSide: 'right', offset: 2, width: 4.0 });
+    } else {
+      // 3-Tier First Floor
+      const balconyW = Math.floor(usableW * 0.48);
+      const loungeW = usableW - balconyW;
 
-    const rmBed2Id = generateId('rm_bed2');
-    f1Rooms.push({
-      id: rmBed2Id,
-      type: 'bedroom',
-      label: 'Bedroom 2 (Guest Suite)',
-      x: leftX,
-      y: f1RearY,
-      width: bed2W,
-      height: f1RearH,
-      floor: 1,
-      color: getColor('bedroom'),
-    });
-    f1Openings.push({ id: generateId('op'), type: 'door', wallRoomId: rmBed2Id, wallSide: 'top', offset: 2, width: 3.0 });
-    f1Openings.push({ id: generateId('op'), type: 'window', wallRoomId: rmBed2Id, wallSide: 'left', offset: 3, width: 4.0 });
+      const rmBalconyId = generateId('rm_balcony');
+      f1Rooms.push({
+        id: rmBalconyId,
+        type: 'balcony',
+        label: 'Front Terrace Balcony',
+        x: leftX,
+        y: topY,
+        width: balconyW,
+        height: frontH,
+        floor: 1,
+        color: getColor('balcony'),
+      });
 
-    const rmBed3Id = generateId('rm_bed3');
-    f1Rooms.push({
-      id: rmBed3Id,
-      type: 'bedroom',
-      label: "Bedroom 3 (Kids' Room)",
-      x: leftX + bed2W,
-      y: f1RearY,
-      width: bed3W,
-      height: f1RearH,
-      floor: 1,
-      color: getColor('bedroom'),
-    });
-    f1Openings.push({ id: generateId('op'), type: 'door', wallRoomId: rmBed3Id, wallSide: 'top', offset: 2, width: 3.0 });
-    f1Openings.push({ id: generateId('op'), type: 'window', wallRoomId: rmBed3Id, wallSide: 'right', offset: 3, width: 4.0 });
+      const rmLoungeId = generateId('rm_lounge');
+      f1Rooms.push({
+        id: rmLoungeId,
+        type: 'living',
+        label: 'Upper Family Lounge',
+        x: leftX + balconyW,
+        y: topY,
+        width: loungeW,
+        height: frontH,
+        floor: 1,
+        color: getColor('living'),
+      });
+
+      const middleY = topY + frontH;
+      const rmStairF1Id = generateId('rm_stair_f1');
+      f1Rooms.push({
+        id: rmStairF1Id,
+        type: 'staircase',
+        label: 'Staircase Landing',
+        x: leftX,
+        y: middleY,
+        width: balconyW,
+        height: middleH,
+        floor: 1,
+        color: getColor('staircase'),
+      });
+
+      const rmStudyId = generateId('rm_study');
+      f1Rooms.push({
+        id: rmStudyId,
+        type: 'study',
+        label: 'Study & Library',
+        x: leftX + balconyW,
+        y: middleY,
+        width: loungeW,
+        height: middleH,
+        floor: 1,
+        color: getColor('study'),
+      });
+
+      const rearY = middleY + middleH;
+      const bed2W = Math.floor(usableW * 0.5);
+      const bed3W = usableW - bed2W;
+
+      const rmBed2Id = generateId('rm_bed2');
+      f1Rooms.push({
+        id: rmBed2Id,
+        type: 'bedroom',
+        label: 'Bedroom 2 (Guest Suite)',
+        x: leftX,
+        y: rearY,
+        width: bed2W,
+        height: rearH,
+        floor: 1,
+        color: getColor('bedroom'),
+      });
+
+      const rmBed3Id = generateId('rm_bed3');
+      f1Rooms.push({
+        id: rmBed3Id,
+        type: 'bedroom',
+        label: "Bedroom 3 (Kids' Room)",
+        x: leftX + bed2W,
+        y: rearY,
+        width: bed3W,
+        height: rearH,
+        floor: 1,
+        color: getColor('bedroom'),
+      });
+    }
 
     floors.push({
       level: 1,
@@ -309,12 +474,12 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
     });
   }
 
-  // --- Second Floor Layout (if G+2 or 3 floors) ---
+  // Second Floor Layout (if G+2 or 3 floors)
   if (floorsCount >= 3) {
     const f2Rooms = [];
     const f2Openings = [];
 
-    const f2TerraceH = Math.round(usableL * 0.45);
+    const f2TerraceH = Math.floor(usableL * 0.45);
     const rmTerraceId = generateId('rm_terrace');
     f2Rooms.push({
       id: rmTerraceId,
@@ -328,6 +493,9 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
       color: getColor('balcony'),
     });
 
+    const f2RearH = usableL - f2TerraceH;
+    const f2GymW = Math.floor(usableW * 0.6);
+
     const rmGymId = generateId('rm_gym');
     f2Rooms.push({
       id: rmGymId,
@@ -335,8 +503,8 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
       label: 'Entertainment / Home Gym Studio',
       x: leftX,
       y: topY + f2TerraceH,
-      width: Math.round(usableW * 0.6),
-      height: usableL - f2TerraceH,
+      width: f2GymW,
+      height: f2RearH,
       floor: 2,
       color: getColor('study'),
     });
@@ -346,10 +514,10 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
       id: rmBed4Id,
       type: 'guest_bedroom',
       label: 'Penthouse Guest Room',
-      x: leftX + Math.round(usableW * 0.6),
+      x: leftX + f2GymW,
       y: topY + f2TerraceH,
-      width: usableW - Math.round(usableW * 0.6),
-      height: usableL - f2TerraceH,
+      width: usableW - f2GymW,
+      height: f2RearH,
       floor: 2,
       color: getColor('guest_bedroom'),
     });
@@ -364,7 +532,7 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
 
   const builtUp = Math.round(usableW * usableL * (floorsCount === 1 ? 0.92 : floorsCount === 2 ? 1.75 : 2.5));
 
-  return {
+  const plan = {
     id: generateId('plan_balanced'),
     name: 'Balanced Layout',
     plot,
@@ -379,6 +547,8 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
     ],
     floors,
   };
+
+  return ensurePlanContainment(plan);
 };
 
 /**
@@ -392,15 +562,20 @@ export const generateOpenLivingLayout = (plot, requirements = {}) => {
 
   const { leftX, topY, usableW, usableL } = calculateSetbacks(plotW, plotL, facing);
 
-  // Ground Floor: Grand Open-Concept Great Room (Living + Dining + Island Kitchen)
+  const isShallow = usableL < 28;
+  const frontH = isShallow 
+    ? Math.max(6, Math.floor(usableL * 0.42)) 
+    : Math.min(14, Math.max(7, Math.floor(usableL * 0.25)));
+  const middleH = isShallow ? 0 : Math.min(18, Math.max(10, Math.floor(usableL * 0.38)));
+  const rearH = isShallow ? (usableL - frontH) : (usableL - (frontH + middleH));
+
+  const parkW = Math.max(4, Math.floor(usableW * 0.4));
+  const porchW = Math.max(4, usableW - parkW);
+
   const gRooms = [];
   const gOpenings = [];
 
-  const parkW = Math.min(12, Math.round(usableW * 0.4));
-  const parkH = Math.min(15, Math.round(usableL * 0.28));
-  const porchW = usableW - parkW;
-
-  // Covered Parking
+  // Front Zone: Covered Parking & Garden Sit-out
   const rmParkId = generateId('rm_park');
   gRooms.push({
     id: rmParkId,
@@ -409,12 +584,11 @@ export const generateOpenLivingLayout = (plot, requirements = {}) => {
     x: leftX,
     y: topY,
     width: parkW,
-    height: parkH,
+    height: frontH,
     floor: 0,
     color: getColor('parking'),
   });
 
-  // Garden Verandah
   const rmPorchId = generateId('rm_porch');
   gRooms.push({
     id: rmPorchId,
@@ -423,79 +597,150 @@ export const generateOpenLivingLayout = (plot, requirements = {}) => {
     x: leftX + parkW,
     y: topY,
     width: porchW,
-    height: 7,
+    height: frontH,
     floor: 0,
     color: getColor('foyer'),
   });
-  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmPorchId, wallSide: 'top', offset: 2, width: 3.5 });
+  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmPorchId, wallSide: 'top', offset: 1.5, width: 3.5 });
 
-  // Floating Staircase
-  const rmStairId = generateId('rm_stair');
-  gRooms.push({
-    id: rmStairId,
-    type: 'staircase',
-    label: 'Architectural Staircase',
-    x: leftX,
-    y: topY + parkH,
-    width: parkW,
-    height: 10,
-    floor: 0,
-    color: getColor('staircase'),
-  });
+  if (isShallow) {
+    const rearY = topY + frontH;
+    if (floorsCount >= 2) {
+      const rmStairId = generateId('rm_stair');
+      gRooms.push({
+        id: rmStairId,
+        type: 'staircase',
+        label: 'Architectural Staircase',
+        x: leftX,
+        y: rearY,
+        width: parkW,
+        height: rearH,
+        floor: 0,
+        color: getColor('staircase'),
+      });
 
-  // Grand Open Living & Dining Core
-  const greatRoomW = usableW - parkW;
-  const greatRoomH = Math.max(16, Math.round(usableL * 0.42));
-  const rmGreatRoomId = generateId('rm_great_room');
-  gRooms.push({
-    id: rmGreatRoomId,
-    type: 'living',
-    label: 'Grand Open Living & Dining Core',
-    x: leftX + parkW,
-    y: topY + 7,
-    width: greatRoomW,
-    height: greatRoomH,
-    floor: 0,
-    color: getColor('living'),
-  });
-  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmGreatRoomId, wallSide: 'top', offset: 3, width: 4.0 });
-  gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmGreatRoomId, wallSide: 'right', offset: 4, width: 6.0 });
+      const greatRoomW = Math.floor((usableW - parkW) * 0.58);
+      const kitchenW = usableW - parkW - greatRoomW;
 
-  // Open Island Kitchen
-  const rearY = Math.max(topY + parkH + 10, topY + 7 + greatRoomH);
-  const rearH = Math.max(12, usableL - (rearY - topY));
-  const kitchenW = Math.round(usableW * 0.46);
-  const masterW = usableW - kitchenW;
+      const rmGreatRoomId = generateId('rm_great_room');
+      gRooms.push({
+        id: rmGreatRoomId,
+        type: 'living',
+        label: 'Grand Open Living & Dining Core',
+        x: leftX + parkW,
+        y: rearY,
+        width: greatRoomW,
+        height: rearH,
+        floor: 0,
+        color: getColor('living'),
+      });
+      gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmGreatRoomId, wallSide: 'bottom', offset: 2, width: 5.0 });
 
-  const rmKitchenId = generateId('rm_kitchen_open');
-  gRooms.push({
-    id: rmKitchenId,
-    type: 'kitchen',
-    label: 'Open Island Kitchen & Pantry',
-    x: leftX,
-    y: rearY,
-    width: kitchenW,
-    height: rearH,
-    floor: 0,
-    color: getColor('kitchen'),
-  });
-  gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmKitchenId, wallSide: 'left', offset: 3, width: 4.0 });
+      const rmKitchenId = generateId('rm_kitchen_open');
+      gRooms.push({
+        id: rmKitchenId,
+        type: 'kitchen',
+        label: 'Open Island Kitchen & Pantry',
+        x: leftX + parkW + greatRoomW,
+        y: rearY,
+        width: kitchenW,
+        height: rearH,
+        floor: 0,
+        color: getColor('kitchen'),
+      });
+      gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmKitchenId, wallSide: 'right', offset: 2, width: 4.0 });
+    } else {
+      const greatRoomW = Math.floor(usableW * 0.55);
+      const masterW = usableW - greatRoomW;
 
-  // Ground Master Suite
-  const rmMasterId = generateId('rm_master');
-  gRooms.push({
-    id: rmMasterId,
-    type: 'master_bedroom',
-    label: 'Master Bedroom Suite',
-    x: leftX + kitchenW,
-    y: rearY,
-    width: masterW,
-    height: rearH,
-    floor: 0,
-    color: getColor('master_bedroom'),
-  });
-  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmMasterId, wallSide: 'top', offset: 2.5, width: 3.0 });
-  gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmMasterId, wallSide: 'right', offset: 3, width: 4.5 });
+      const rmGreatRoomId = generateId('rm_great_room');
+      gRooms.push({
+        id: rmGreatRoomId,
+        type: 'living',
+        label: 'Grand Open Living & Dining Core',
+        x: leftX,
+        y: rearY,
+        width: greatRoomW,
+        height: rearH,
+        floor: 0,
+        color: getColor('living'),
+      });
+
+      const rmMasterId = generateId('rm_master');
+      gRooms.push({
+        id: rmMasterId,
+        type: 'master_bedroom',
+        label: 'Master Bedroom Suite',
+        x: leftX + greatRoomW,
+        y: rearY,
+        width: masterW,
+        height: rearH,
+        floor: 0,
+        color: getColor('master_bedroom'),
+      });
+    }
+  } else {
+    // 3-Tier Layout for deep plots
+    const middleY = topY + frontH;
+    const rmStairId = generateId('rm_stair');
+    gRooms.push({
+      id: rmStairId,
+      type: 'staircase',
+      label: 'Architectural Staircase',
+      x: leftX,
+      y: middleY,
+      width: parkW,
+      height: middleH,
+      floor: 0,
+      color: getColor('staircase'),
+    });
+
+    const rmGreatRoomId = generateId('rm_great_room');
+    gRooms.push({
+      id: rmGreatRoomId,
+      type: 'living',
+      label: 'Grand Open Living & Dining Core',
+      x: leftX + parkW,
+      y: middleY,
+      width: usableW - parkW,
+      height: middleH,
+      floor: 0,
+      color: getColor('living'),
+    });
+    gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmGreatRoomId, wallSide: 'right', offset: 2, width: 5.5 });
+
+    const rearY = middleY + middleH;
+    const kitchenW = Math.floor(usableW * 0.46);
+    const masterW = usableW - kitchenW;
+
+    const rmKitchenId = generateId('rm_kitchen_open');
+    gRooms.push({
+      id: rmKitchenId,
+      type: 'kitchen',
+      label: 'Open Island Kitchen & Pantry',
+      x: leftX,
+      y: rearY,
+      width: kitchenW,
+      height: rearH,
+      floor: 0,
+      color: getColor('kitchen'),
+    });
+    gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmKitchenId, wallSide: 'left', offset: 2, width: 4.0 });
+
+    const rmMasterId = generateId('rm_master');
+    gRooms.push({
+      id: rmMasterId,
+      type: 'master_bedroom',
+      label: 'Master Bedroom Suite',
+      x: leftX + kitchenW,
+      y: rearY,
+      width: masterW,
+      height: rearH,
+      floor: 0,
+      color: getColor('master_bedroom'),
+    });
+    gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmMasterId, wallSide: 'right', offset: 2, width: 4.5 });
+  }
 
   const floors = [
     {
@@ -510,81 +755,134 @@ export const generateOpenLivingLayout = (plot, requirements = {}) => {
     const f1Rooms = [];
     const f1Openings = [];
 
-    // Full-Width Sky Deck
-    const terraceH = Math.min(12, Math.round(usableL * 0.24));
-    const rmTerraceId = generateId('rm_terrace');
-    f1Rooms.push({
-      id: rmTerraceId,
-      type: 'balcony',
-      label: 'Full-Width Sky Deck Terrace',
-      x: leftX,
-      y: topY,
-      width: usableW,
-      height: terraceH,
-      floor: 1,
-      color: getColor('balcony'),
-    });
-    f1Openings.push({ id: generateId('op'), type: 'door', wallRoomId: rmTerraceId, wallSide: 'bottom', offset: 4, width: 4.0 });
+    if (isShallow) {
+      const rmTerraceId = generateId('rm_terrace');
+      f1Rooms.push({
+        id: rmTerraceId,
+        type: 'balcony',
+        label: 'Full-Width Sky Deck Terrace',
+        x: leftX,
+        y: topY,
+        width: usableW,
+        height: frontH,
+        floor: 1,
+        color: getColor('balcony'),
+      });
 
-    // Upper Landing & Study
-    const f1StairH = 10;
-    const f1StairY = topY + terraceH;
-    const rmStairF1Id = generateId('rm_stair_f1');
-    f1Rooms.push({
-      id: rmStairF1Id,
-      type: 'staircase',
-      label: 'Upper Gallery Landing',
-      x: leftX,
-      y: f1StairY,
-      width: Math.round(usableW * 0.45),
-      height: f1StairH,
-      floor: 1,
-      color: getColor('staircase'),
-    });
+      const rearY = topY + frontH;
+      const rmStairF1Id = generateId('rm_stair_f1');
+      f1Rooms.push({
+        id: rmStairF1Id,
+        type: 'staircase',
+        label: 'Upper Gallery Landing',
+        x: leftX,
+        y: rearY,
+        width: parkW,
+        height: rearH,
+        floor: 1,
+        color: getColor('staircase'),
+      });
 
-    const rmStudyId = generateId('rm_study');
-    f1Rooms.push({
-      id: rmStudyId,
-      type: 'study',
-      label: 'Work Studio / Library',
-      x: leftX + Math.round(usableW * 0.45),
-      y: f1StairY,
-      width: usableW - Math.round(usableW * 0.45),
-      height: f1StairH,
-      floor: 1,
-      color: getColor('study'),
-    });
+      const bed2W = Math.floor((usableW - parkW) * 0.54);
+      const bed3W = usableW - parkW - bed2W;
 
-    // Rear Bedrooms
-    const f1RearY = f1StairY + f1StairH;
-    const f1RearH = Math.max(12, usableL - (f1RearY - topY));
-    const bed2W = Math.round(usableW * 0.5);
+      const rmBed2Id = generateId('rm_bed2');
+      f1Rooms.push({
+        id: rmBed2Id,
+        type: 'bedroom',
+        label: 'Master Bedroom Suite',
+        x: leftX + parkW,
+        y: rearY,
+        width: bed2W,
+        height: rearH,
+        floor: 1,
+        color: getColor('master_bedroom'),
+      });
 
-    const rmBed2Id = generateId('rm_bed2');
-    f1Rooms.push({
-      id: rmBed2Id,
-      type: 'bedroom',
-      label: 'Bedroom 2 Suite',
-      x: leftX,
-      y: f1RearY,
-      width: bed2W,
-      height: f1RearH,
-      floor: 1,
-      color: getColor('bedroom'),
-    });
+      const rmBed3Id = generateId('rm_bed3');
+      f1Rooms.push({
+        id: rmBed3Id,
+        type: 'bedroom',
+        label: 'Bedroom 2 Suite',
+        x: leftX + parkW + bed2W,
+        y: rearY,
+        width: bed3W,
+        height: rearH,
+        floor: 1,
+        color: getColor('bedroom'),
+      });
+    } else {
+      const rmTerraceId = generateId('rm_terrace');
+      f1Rooms.push({
+        id: rmTerraceId,
+        type: 'balcony',
+        label: 'Full-Width Sky Deck Terrace',
+        x: leftX,
+        y: topY,
+        width: usableW,
+        height: frontH,
+        floor: 1,
+        color: getColor('balcony'),
+      });
 
-    const rmBed3Id = generateId('rm_bed3');
-    f1Rooms.push({
-      id: rmBed3Id,
-      type: 'bedroom',
-      label: 'Bedroom 3 Studio',
-      x: leftX + bed2W,
-      y: f1RearY,
-      width: usableW - bed2W,
-      height: f1RearH,
-      floor: 1,
-      color: getColor('bedroom'),
-    });
+      const middleY = topY + frontH;
+      const stairF1W = Math.floor(usableW * 0.45);
+
+      const rmStairF1Id = generateId('rm_stair_f1');
+      f1Rooms.push({
+        id: rmStairF1Id,
+        type: 'staircase',
+        label: 'Upper Gallery Landing',
+        x: leftX,
+        y: middleY,
+        width: stairF1W,
+        height: middleH,
+        floor: 1,
+        color: getColor('staircase'),
+      });
+
+      const rmStudyId = generateId('rm_study');
+      f1Rooms.push({
+        id: rmStudyId,
+        type: 'study',
+        label: 'Work Studio / Library',
+        x: leftX + stairF1W,
+        y: middleY,
+        width: usableW - stairF1W,
+        height: middleH,
+        floor: 1,
+        color: getColor('study'),
+      });
+
+      const rearY = middleY + middleH;
+      const bed2W = Math.floor(usableW * 0.5);
+
+      const rmBed2Id = generateId('rm_bed2');
+      f1Rooms.push({
+        id: rmBed2Id,
+        type: 'bedroom',
+        label: 'Bedroom 2 Suite',
+        x: leftX,
+        y: rearY,
+        width: bed2W,
+        height: rearH,
+        floor: 1,
+        color: getColor('bedroom'),
+      });
+
+      const rmBed3Id = generateId('rm_bed3');
+      f1Rooms.push({
+        id: rmBed3Id,
+        type: 'bedroom',
+        label: 'Bedroom 3 Studio',
+        x: leftX + bed2W,
+        y: rearY,
+        width: usableW - bed2W,
+        height: rearH,
+        floor: 1,
+        color: getColor('bedroom'),
+      });
+    }
 
     floors.push({
       level: 1,
@@ -594,9 +892,9 @@ export const generateOpenLivingLayout = (plot, requirements = {}) => {
     });
   }
 
-  const builtUp = Math.round(usableW * usableL * (floorsCount === 1 ? 0.9 : 1.7));
+  const builtUp = Math.round(usableW * usableL * (floorsCount === 1 ? 0.95 : 1.8));
 
-  return {
+  const plan = {
     id: generateId('plan_open'),
     name: 'Open Living',
     plot,
@@ -609,6 +907,8 @@ export const generateOpenLivingLayout = (plot, requirements = {}) => {
     ],
     floors,
   };
+
+  return ensurePlanContainment(plan);
 };
 
 /**
@@ -622,19 +922,18 @@ export const generateVastuPriorityLayout = (plot, requirements = {}) => {
 
   const { leftX, topY, usableW, usableL } = calculateSetbacks(plotW, plotL, facing);
 
-  // Strict 8-direction zoning:
-  // NE (Ishanya): Pooja Room & North-East Verandah
-  // SE (Agni): Modular Kitchen & Cooking Fire
-  // SW (Nairutya): Master Bedroom Haven
-  // NW (Vayavya): Parking Bay & Guest Circulation
-  // Center (Brahmasthan): Open Living Hall
+  const isShallow = usableL < 28;
+  const frontH = isShallow 
+    ? Math.max(6, Math.floor(usableL * 0.42)) 
+    : Math.min(14, Math.max(7, Math.floor(usableL * 0.25)));
+  const middleH = isShallow ? 0 : Math.min(18, Math.max(10, Math.floor(usableL * 0.38)));
+  const rearH = isShallow ? (usableL - frontH) : (usableL - (frontH + middleH));
+  const parkW = Math.max(4, Math.floor(usableW * 0.42));
+  const foyerW = Math.max(3, Math.floor((usableW - parkW) * 0.5));
+  const poojaW = Math.max(3, usableW - parkW - foyerW);
+
   const gRooms = [];
   const gOpenings = [];
-
-  const parkW = Math.min(12, Math.round(usableW * 0.45));
-  const parkH = Math.min(14, Math.round(usableL * 0.28));
-  const poojaW = Math.max(6, Math.round((usableW - parkW) * 0.45));
-  const foyerW = usableW - parkW - poojaW;
 
   // North-West Parking
   const rmParkId = generateId('rm_park');
@@ -645,7 +944,7 @@ export const generateVastuPriorityLayout = (plot, requirements = {}) => {
     x: leftX,
     y: topY,
     width: parkW,
-    height: parkH,
+    height: frontH,
     floor: 0,
     color: getColor('parking'),
   });
@@ -659,11 +958,11 @@ export const generateVastuPriorityLayout = (plot, requirements = {}) => {
     x: leftX + parkW,
     y: topY,
     width: foyerW,
-    height: 8,
+    height: frontH,
     floor: 0,
     color: getColor('foyer'),
   });
-  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmFoyerId, wallSide: 'top', offset: 1.5, width: 3.5 });
+  gOpenings.push({ id: generateId('op'), type: 'door', wallRoomId: rmFoyerId, wallSide: 'top', offset: 1.0, width: 3.0 });
 
   // North-East Ishanya Pooja Sanctum
   const rmPoojaId = generateId('rm_pooja');
@@ -674,71 +973,145 @@ export const generateVastuPriorityLayout = (plot, requirements = {}) => {
     x: leftX + parkW + foyerW,
     y: topY,
     width: poojaW,
-    height: 8,
+    height: frontH,
     floor: 0,
     color: getColor('pooja'),
   });
 
-  // Central Brahmasthan Living Hall
-  const livingH = Math.max(14, Math.round(usableL * 0.35));
-  const rmLivingId = generateId('rm_living');
-  gRooms.push({
-    id: rmLivingId,
-    type: 'living',
-    label: 'Living & Dining (Brahmasthan)',
-    x: leftX + parkW,
-    y: topY + 8,
-    width: usableW - parkW,
-    height: livingH,
-    floor: 0,
-    color: getColor('living'),
-  });
+  if (isShallow) {
+    const rearY = topY + frontH;
+    if (floorsCount >= 2) {
+      const rmStairId = generateId('rm_stair');
+      gRooms.push({
+        id: rmStairId,
+        type: 'staircase',
+        label: 'Staircase (West)',
+        x: leftX,
+        y: rearY,
+        width: parkW,
+        height: rearH,
+        floor: 0,
+        color: getColor('staircase'),
+      });
 
-  // West Staircase
-  const rmStairId = generateId('rm_stair');
-  gRooms.push({
-    id: rmStairId,
-    type: 'staircase',
-    label: 'Staircase (West)',
-    x: leftX,
-    y: topY + parkH,
-    width: parkW,
-    height: 10,
-    floor: 0,
-    color: getColor('staircase'),
-  });
+      const livingW = Math.floor((usableW - parkW) * 0.55);
+      const kitchenW = usableW - parkW - livingW;
 
-  // South-West (Nairutya) Master Bedroom & South-East (Agni) Kitchen
-  const rearY = Math.max(topY + parkH + 10, topY + 8 + livingH);
-  const rearH = Math.max(12, usableL - (rearY - topY));
-  const masterW = Math.round(usableW * 0.54);
-  const kitchenW = usableW - masterW;
+      const rmLivingId = generateId('rm_living');
+      gRooms.push({
+        id: rmLivingId,
+        type: 'living',
+        label: 'Living & Dining (Brahmasthan)',
+        x: leftX + parkW,
+        y: rearY,
+        width: livingW,
+        height: rearH,
+        floor: 0,
+        color: getColor('living'),
+      });
 
-  const rmMasterId = generateId('rm_master');
-  gRooms.push({
-    id: rmMasterId,
-    type: 'master_bedroom',
-    label: 'Master Bed (Nairutya / SW)',
-    x: leftX,
-    y: rearY,
-    width: masterW,
-    height: rearH,
-    floor: 0,
-    color: getColor('master_bedroom'),
-  });
+      const rmKitchenId = generateId('rm_kitchen');
+      gRooms.push({
+        id: rmKitchenId,
+        type: 'kitchen',
+        label: 'Kitchen (Agni / SE)',
+        x: leftX + parkW + livingW,
+        y: rearY,
+        width: kitchenW,
+        height: rearH,
+        floor: 0,
+        color: getColor('kitchen'),
+      });
+      gOpenings.push({ id: generateId('op'), type: 'window', wallRoomId: rmKitchenId, wallSide: 'right', offset: 2, width: 3.5 });
+    } else {
+      const masterW = Math.floor(usableW * 0.54);
+      const kitchenW = usableW - masterW;
 
-  const rmKitchenId = generateId('rm_kitchen');
-  gRooms.push({
-    id: rmKitchenId,
-    type: 'kitchen',
-    label: 'Kitchen (Agni / SE)',
-    x: leftX + masterW,
-    y: rearY,
-    width: kitchenW,
-    height: rearH,
-    floor: 0,
-    color: getColor('kitchen'),
-  });
+      const rmMasterId = generateId('rm_master');
+      gRooms.push({
+        id: rmMasterId,
+        type: 'master_bedroom',
+        label: 'Master Bed (Nairutya / SW)',
+        x: leftX,
+        y: rearY,
+        width: masterW,
+        height: rearH,
+        floor: 0,
+        color: getColor('master_bedroom'),
+      });
+
+      const rmKitchenId = generateId('rm_kitchen');
+      gRooms.push({
+        id: rmKitchenId,
+        type: 'kitchen',
+        label: 'Kitchen (Agni / SE)',
+        x: leftX + masterW,
+        y: rearY,
+        width: kitchenW,
+        height: rearH,
+        floor: 0,
+        color: getColor('kitchen'),
+      });
+    }
+  } else {
+    // 3-Tier Layout for deep plots
+    const middleY = topY + frontH;
+    const rmStairId = generateId('rm_stair');
+    gRooms.push({
+      id: rmStairId,
+      type: 'staircase',
+      label: 'Staircase (West)',
+      x: leftX,
+      y: middleY,
+      width: parkW,
+      height: middleH,
+      floor: 0,
+      color: getColor('staircase'),
+    });
+
+    const rmLivingId = generateId('rm_living');
+    gRooms.push({
+      id: rmLivingId,
+      type: 'living',
+      label: 'Living & Dining (Brahmasthan)',
+      x: leftX + parkW,
+      y: middleY,
+      width: usableW - parkW,
+      height: middleH,
+      floor: 0,
+      color: getColor('living'),
+    });
+
+    const rearY = middleY + middleH;
+    const masterW = Math.floor(usableW * 0.54);
+    const kitchenW = usableW - masterW;
+
+    const rmMasterId = generateId('rm_master');
+    gRooms.push({
+      id: rmMasterId,
+      type: 'master_bedroom',
+      label: 'Master Bed (Nairutya / SW)',
+      x: leftX,
+      y: rearY,
+      width: masterW,
+      height: rearH,
+      floor: 0,
+      color: getColor('master_bedroom'),
+    });
+
+    const rmKitchenId = generateId('rm_kitchen');
+    gRooms.push({
+      id: rmKitchenId,
+      type: 'kitchen',
+      label: 'Kitchen (Agni / SE)',
+      x: leftX + masterW,
+      y: rearY,
+      width: kitchenW,
+      height: rearH,
+      floor: 0,
+      color: getColor('kitchen'),
+    });
+  }
 
   const floors = [
     {
@@ -753,62 +1126,131 @@ export const generateVastuPriorityLayout = (plot, requirements = {}) => {
     const f1Rooms = [];
     const f1Openings = [];
 
-    const balconyW = Math.round(usableW * 0.45);
-    const rmBalconyId = generateId('rm_balcony');
-    f1Rooms.push({
-      id: rmBalconyId,
-      type: 'balcony',
-      label: 'Balcony (North-East)',
-      x: leftX + usableW - balconyW,
-      y: topY,
-      width: balconyW,
-      height: 10,
-      floor: 1,
-      color: getColor('balcony'),
-    });
+    if (isShallow) {
+      const rmStairF1Id = generateId('rm_stair_f1');
+      f1Rooms.push({
+        id: rmStairF1Id,
+        type: 'staircase',
+        label: 'Staircase Landing (NW)',
+        x: leftX,
+        y: topY,
+        width: parkW,
+        height: frontH,
+        floor: 1,
+        color: getColor('staircase'),
+      });
 
-    const rmStairF1Id = generateId('rm_stair_f1');
-    f1Rooms.push({
-      id: rmStairF1Id,
-      type: 'staircase',
-      label: 'Staircase Landing',
-      x: leftX,
-      y: topY,
-      width: Math.round(usableW * 0.4),
-      height: 12,
-      floor: 1,
-      color: getColor('staircase'),
-    });
+      const rmBalconyId = generateId('rm_balcony');
+      f1Rooms.push({
+        id: rmBalconyId,
+        type: 'balcony',
+        label: 'Balcony (North-East)',
+        x: leftX + parkW,
+        y: topY,
+        width: usableW - parkW,
+        height: frontH,
+        floor: 1,
+        color: getColor('balcony'),
+      });
 
-    const f1RearY = topY + 12;
-    const f1RearH = Math.max(12, usableL - 12);
-    const bed2W = Math.round(usableW * 0.5);
+      const rearY = topY + frontH;
+      const bed2W = Math.floor(usableW * 0.55);
 
-    const rmBed2Id = generateId('rm_bed2');
-    f1Rooms.push({
-      id: rmBed2Id,
-      type: 'bedroom',
-      label: 'Bedroom 2 (North-West)',
-      x: leftX,
-      y: f1RearY,
-      width: bed2W,
-      height: f1RearH,
-      floor: 1,
-      color: getColor('bedroom'),
-    });
+      const rmBed2Id = generateId('rm_bed2');
+      f1Rooms.push({
+        id: rmBed2Id,
+        type: 'master_bedroom',
+        label: 'Master Bed (Nairutya / SW)',
+        x: leftX,
+        y: rearY,
+        width: bed2W,
+        height: rearH,
+        floor: 1,
+        color: getColor('master_bedroom'),
+      });
 
-    const rmBed3Id = generateId('rm_bed3');
-    f1Rooms.push({
-      id: rmBed3Id,
-      type: 'guest_bedroom',
-      label: 'Bedroom 3 (South)',
-      x: leftX + bed2W,
-      y: f1RearY,
-      width: usableW - bed2W,
-      height: f1RearH,
-      floor: 1,
-      color: getColor('guest_bedroom'),
-    });
+      const rmBed3Id = generateId('rm_bed3');
+      f1Rooms.push({
+        id: rmBed3Id,
+        type: 'guest_bedroom',
+        label: 'Bedroom 2 (South)',
+        x: leftX + bed2W,
+        y: rearY,
+        width: usableW - bed2W,
+        height: rearH,
+        floor: 1,
+        color: getColor('guest_bedroom'),
+      });
+    } else {
+      const rmStairF1Id = generateId('rm_stair_f1');
+      f1Rooms.push({
+        id: rmStairF1Id,
+        type: 'staircase',
+        label: 'Staircase Landing',
+        x: leftX,
+        y: topY,
+        width: parkW,
+        height: frontH,
+        floor: 1,
+        color: getColor('staircase'),
+      });
+
+      const rmBalconyId = generateId('rm_balcony');
+      f1Rooms.push({
+        id: rmBalconyId,
+        type: 'balcony',
+        label: 'Balcony (North-East)',
+        x: leftX + parkW,
+        y: topY,
+        width: usableW - parkW,
+        height: frontH,
+        floor: 1,
+        color: getColor('balcony'),
+      });
+
+      const middleY = topY + frontH;
+      const rmLoungeId = generateId('rm_lounge_vastu');
+      f1Rooms.push({
+        id: rmLoungeId,
+        type: 'living',
+        label: 'Upper Family Lounge',
+        x: leftX,
+        y: middleY,
+        width: usableW,
+        height: middleH,
+        floor: 1,
+        color: getColor('living'),
+      });
+
+      const rearY = middleY + middleH;
+      const bed2W = Math.floor(usableW * 0.5);
+
+      const rmBed2Id = generateId('rm_bed2');
+      f1Rooms.push({
+        id: rmBed2Id,
+        type: 'bedroom',
+        label: 'Bedroom 2 (North-West)',
+        x: leftX,
+        y: rearY,
+        width: bed2W,
+        height: rearH,
+        floor: 1,
+        color: getColor('bedroom'),
+      });
+
+      const rmBed3Id = generateId('rm_bed3');
+      f1Rooms.push({
+        id: rmBed3Id,
+        type: 'guest_bedroom',
+        label: 'Bedroom 3 (South)',
+        x: leftX + bed2W,
+        y: rearY,
+        width: usableW - bed2W,
+        height: rearH,
+        floor: 1,
+        color: getColor('guest_bedroom'),
+      });
+    }
 
     floors.push({
       level: 1,
@@ -820,7 +1262,7 @@ export const generateVastuPriorityLayout = (plot, requirements = {}) => {
 
   const builtUp = Math.round(usableW * usableL * (floorsCount === 1 ? 0.9 : 1.72));
 
-  return {
+  const plan = {
     id: generateId('plan_vastu'),
     name: 'Vastu Priority',
     plot,
@@ -834,4 +1276,6 @@ export const generateVastuPriorityLayout = (plot, requirements = {}) => {
     ],
     floors,
   };
+
+  return ensurePlanContainment(plan);
 };

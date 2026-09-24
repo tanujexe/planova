@@ -285,7 +285,7 @@ export const RoomCatalogBuilder = ({ onBuildProject }) => {
     return initial;
   });
 
-  const [activeRoomId, setActiveRoomId] = useState('bed_closet');
+  const [activeRoomId, setActiveRoomId] = useState('primary_bedroom');
 
   // Plot Area Decider states
   const [plotWidth, setPlotWidth] = useState(30);
@@ -951,7 +951,7 @@ export const RoomCatalogBuilder = ({ onBuildProject }) => {
                   <span className="w-1.5 h-1.5 rounded-xs bg-white" />
                   <span className="w-1.5 h-1.5 rounded-xs bg-white" />
                 </div>
-                <span>Continue with {addedRooms.length} rooms</span>
+                <span>Generate Design ({addedRooms.length} rooms)</span>
               </div>
               <ArrowRight className="w-4 h-4" />
             </button>

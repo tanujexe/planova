@@ -10,7 +10,6 @@ import {
   Ruler
 } from 'lucide-react';
 import { RoomCatalogBuilder } from '../components/wizard/RoomCatalogBuilder.jsx';
-import { PlaceRoomsWorkspace } from '../components/design/PlaceRoomsWorkspace.jsx';
 import { useProjectStore } from '../store/useProjectStore.js';
 import { GenerationService } from '../services/generation.js';
 
@@ -18,38 +17,21 @@ export const NewProjectPage = () => {
   const navigate = useNavigate();
   const { createProject, saveActiveProject } = useProjectStore();
 
-  const [currentStep, setCurrentStep] = useState(1); // 1: RoomCatalogBuilder, 2: PlaceRoomsWorkspace
-  const [projectDataState, setProjectDataState] = useState(null);
   const [isBuilding, setIsBuilding] = useState(false);
   const [progressStage, setProgressStage] = useState('');
 
-  // Step 1 -> Step 2 transition
-  const handleRoomCatalogContinue = (projectData) => {
-    setProjectDataState(projectData);
-    setCurrentStep(2);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Step 2 -> Step 3 (Furnish & Render)
-  const handleCompleteWorkspace = async (workspaceData) => {
+  // Directly generate project from Room Catalog selections
+  const handleBuildProject = async (projectData) => {
     setIsBuilding(true);
     setProgressStage('Initializing architectural spatial boundaries...');
 
     try {
       const finalProjectData = {
-        ...(projectDataState || {}),
-        plot: workspaceData.plot || projectDataState?.plot || { width: 30, length: 50, floors: 2 },
+        ...(projectData || {}),
+        plot: projectData?.plot || { width: 30, length: 50, floors: 2 },
         requirements: {
-          ...(projectDataState?.requirements || { bhk: 3, budgetInr: 3500000 }),
-          rooms: (workspaceData.placedRooms || []).map((r) => ({
-            type: r.typeId || r.type || 'bedroom',
-            count: 1,
-            size: r.size || 'M',
-            x: r.x,
-            y: r.y,
-            width: r.width,
-            height: r.height,
-          })),
+          ...(projectData?.requirements || { bhk: 3, budgetInr: 3500000 }),
+          rooms: projectData?.requirements?.rooms || [],
         },
       };
 
@@ -107,19 +89,7 @@ export const NewProjectPage = () => {
     );
   }
 
-  // Step 2: The Moveable PlaceRoomsWorkspace matching user's screenshots
-  if (currentStep === 2) {
-    return (
-      <PlaceRoomsWorkspace
-        initialPlot={projectDataState?.plot || { width: 30, length: 50, floors: 2, facing: 'north' }}
-        initialRooms={projectDataState?.requirements?.rooms || []}
-        onBackToRoomList={() => setCurrentStep(1)}
-        onCompleteToResults={handleCompleteWorkspace}
-      />
-    );
-  }
-
-  // Step 1: The RoomCatalogBuilder
+  // Room Catalog Builder
   return (
     <div className="flex-1 bg-[#F7F5F0] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-[1550px] mx-auto space-y-6">
@@ -139,18 +109,18 @@ export const NewProjectPage = () => {
                 Design Your Home
               </h1>
               <p className="text-xs text-neutral-500">
-                Step 1: Select your rooms, customize their sizes (S/M/L), and decide your plot area.
+                Select your rooms, customize their sizes (S/M/L), and decide your plot area.
               </p>
             </div>
           </div>
 
           <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-neutral-500">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Step 1 of 2 • Spatial Brief</span>
+            <span>Spatial Brief</span>
           </div>
         </div>
 
-        <RoomCatalogBuilder onBuildProject={handleRoomCatalogContinue} />
+        <RoomCatalogBuilder onBuildProject={handleBuildProject} />
 
       </div>
     </div>
