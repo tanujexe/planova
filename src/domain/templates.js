@@ -569,8 +569,8 @@ export const generateOpenLivingLayout = (plot, requirements = {}) => {
   const middleH = isShallow ? 0 : Math.min(18, Math.max(10, Math.floor(usableL * 0.38)));
   const rearH = isShallow ? (usableL - frontH) : (usableL - (frontH + middleH));
 
-  const parkW = Math.min(12, Math.max(8, Math.floor(usableW * 0.4)));
-  const porchW = usableW - parkW;
+  const parkW = Math.max(4, Math.floor(usableW * 0.4));
+  const porchW = Math.max(4, usableW - parkW);
 
   const gRooms = [];
   const gOpenings = [];
@@ -927,6 +927,7 @@ export const generateVastuPriorityLayout = (plot, requirements = {}) => {
     ? Math.max(6, Math.floor(usableL * 0.42)) 
     : Math.min(14, Math.max(7, Math.floor(usableL * 0.25)));
   const middleH = isShallow ? 0 : Math.min(18, Math.max(10, Math.floor(usableL * 0.38)));
+  const rearH = isShallow ? (usableL - frontH) : (usableL - (frontH + middleH));
   const parkW = Math.max(4, Math.floor(usableW * 0.42));
   const foyerW = Math.max(3, Math.floor((usableW - parkW) * 0.5));
   const poojaW = Math.max(3, usableW - parkW - foyerW);
