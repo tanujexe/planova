@@ -623,7 +623,7 @@ export const ProjectOverviewPage = () => {
         <button
           onClick={() => setIsAiAssistantOpen(!isAiAssistantOpen)}
           className="w-13 h-13 rounded-full bg-[#0284C7] hover:bg-[#0369A1] text-white flex items-center justify-center shadow-2xl hover:scale-105 transition-all duration-200"
-          title="Drafted AI Architectural Assistant"
+          title="Planova AI Architectural Assistant"
         >
           {isAiAssistantOpen ? (
             <X className="w-6 h-6" />
@@ -642,7 +642,7 @@ export const ProjectOverviewPage = () => {
                 <Sparkles className="w-4 h-4" />
               </div>
               <h3 className="font-serif text-sm font-bold text-neutral-900">
-                Drafted AI Architectural Copilot
+                Planova AI Architectural Copilot
               </h3>
             </div>
             <button

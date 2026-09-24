@@ -26,7 +26,7 @@ export const LearnModal = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h3 className="font-serif text-xl font-bold text-neutral-900">
-                Drafted Architectural Studio Guide
+                Planova Architectural Studio Guide
               </h3>
               <p className="text-xs text-neutral-500">
                 How to design, iterate, visualize, and estimate your home

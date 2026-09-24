@@ -28,7 +28,15 @@ const ROOM_BASE_AREAS = {
  * Checks basic spatial feasibility of a plot and brief
  * @param {object} plot 
  * @param {object} requirements 
- * @returns {{ isFeasible: boolean, warnings: Array<string>, requiredSqFt: number, availableSqFt: number, utilizationRatio: number }}
+ * @returns {{
+ *   isFeasible: boolean,
+ *   congestionLevel: 'comfortable' | 'tight' | 'highly_constrained' | 'not_feasible',
+ *   warnings: Array<string>,
+ *   requiredSqFt: number,
+ *   availableSqFt: number,
+ *   groundUsableSqFt: number,
+ *   utilizationRatio: number
+ * }}
  */
 export const checkBriefFeasibility = (plot, requirements) => {
   const plotW = Number(plot.width) || 30;
@@ -76,6 +84,15 @@ export const checkBriefFeasibility = (plot, requirements) => {
   const utilizationRatio = Number((totalRequired / totalUsableBuiltUp).toFixed(2));
   const warnings = [];
 
+  let congestionLevel = 'comfortable';
+  if (utilizationRatio > 1.35) {
+    congestionLevel = 'not_feasible';
+  } else if (utilizationRatio > 1.15) {
+    congestionLevel = 'highly_constrained';
+  } else if (utilizationRatio > 0.90) {
+    congestionLevel = 'tight';
+  }
+
   // Rules checks:
   if (parkingArea > groundUsableArea * 0.45) {
     warnings.push(`Parking for ${cars} car(s) and ${twoWheelers} two-wheeler(s) consumes over 45% of your ground floor footprint.`);
@@ -97,6 +114,7 @@ export const checkBriefFeasibility = (plot, requirements) => {
 
   return {
     isFeasible: warnings.length === 0,
+    congestionLevel,
     warnings,
     requiredSqFt: totalRequired,
     availableSqFt: totalUsableBuiltUp,

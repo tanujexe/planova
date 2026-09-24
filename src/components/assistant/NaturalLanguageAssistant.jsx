@@ -33,7 +33,7 @@ export const NaturalLanguageAssistant = ({
   const [historyLog, setHistoryLog] = useState([
     {
       sender: 'ai',
-      text: 'Hello! I am your Drafted AI architectural assistant. You can ask me to expand rooms, reposition zones according to Vastu, add terraces, or optimize for a budget constraint.',
+      text: 'Hello! I am your Planova AI architectural assistant. You can ask me to expand rooms, reposition zones according to Vastu, add terraces, or optimize for a budget constraint.',
     },
   ]);
 
@@ -222,7 +222,7 @@ export const NaturalLanguageAssistant = ({
             type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Ask Drafted AI to modify layout..."
+            placeholder="Ask Planova AI to modify layout..."
             className="flex-1 text-xs px-3.5 py-2.5 bg-white border border-sand-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sage-500/20 focus:border-sage-500 text-ink"
             disabled={isProcessing}
           />

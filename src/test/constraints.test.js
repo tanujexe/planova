@@ -1,4 +1,5 @@
 import { validatePlan, validateRoomMutation, doRectanglesOverlap } from '../domain/constraints.js';
+import { MutationEngine } from '../services/mutationEngine.js';
 import { SHARMA_RESIDENCE_PROJECT } from '../data/demoProject.js';
 
 export const runConstraintsTests = () => {
@@ -36,7 +37,7 @@ export const runConstraintsTests = () => {
         level: 0,
         label: 'Ground',
         rooms: [
-          { id: 'rm-1', label: 'Spillover Room', x: 25, y: 40, width: 10, height: 15 }, // x+w = 35 > 30, y+h = 55 > 50
+          { id: 'rm-1', label: 'Spillover Room', x: 25, y: 40, width: 10, height: 15 },
         ],
       },
     ],
@@ -60,6 +61,29 @@ export const runConstraintsTests = () => {
   };
   const negResult = validatePlan(negativePlan);
   assert(negResult.valid === false, 'Negative dimension fails validation');
+
+  // 5. MutationEngine locked room preservation test
+  const basePlan = structuredClone(SHARMA_RESIDENCE_PROJECT.design);
+  const parkingRoom = basePlan.floors[0].rooms.find(r => r.type === 'parking');
+  const lockedResult = MutationEngine.executeMutation(
+    basePlan,
+    (mutated) => {
+      const p = mutated.floors[0].rooms.find(r => r.id === parkingRoom.id);
+      if (p) p.x += 5; // Modifying locked parking
+    },
+    [parkingRoom.id]
+  );
+  assert(lockedResult.status === 'blocked', 'Modifying locked element causes mutation to be BLOCKED');
+
+  // 6. Safe resize engine test
+  const kitchen = basePlan.floors[0].rooms.find(r => r.type === 'kitchen');
+  const safeResizeResult = MutationEngine.findSafeResize(basePlan, 0, kitchen, 0.20);
+  assert(safeResizeResult !== null, 'Safe resize finds valid candidate dimensions for kitchen');
+
+  // 7. Safe position candidate finder test
+  const master = basePlan.floors[0].rooms.find(r => r.type === 'master_bedroom');
+  const safePos = MutationEngine.findSafePosition(basePlan, 0, master, 'rear_sw');
+  assert(safePos !== null && safePos.x >= 0 && safePos.y >= 0, 'Safe position engine finds valid rear SW coordinates');
 
   console.log(`--- Finished: ${passed}/${total} assertions passed ---`);
   return passed === total;

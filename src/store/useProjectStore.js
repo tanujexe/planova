@@ -2,8 +2,25 @@ import { create } from 'zustand';
 import { ProjectRepository } from '../services/repository.js';
 import { generateId } from '../lib/ids.js';
 import { validatePlan, validateRoomMutation } from '../domain/constraints.js';
+import { MutationEngine } from '../services/mutationEngine.js';
 
 const MAX_HISTORY = 20;
+
+/**
+ * Calculates total built-up area across all floors in a floor plan
+ * @param {object} plan 
+ * @returns {number}
+ */
+const calculateBuiltUpArea = (plan) => {
+  if (!plan || !plan.floors) return 0;
+  let total = 0;
+  plan.floors.forEach((f) => {
+    (f.rooms || []).forEach((r) => {
+      total += (r.width * r.height);
+    });
+  });
+  return Math.round(total);
+};
 
 export const useProjectStore = create((set, get) => ({
   projects: [],
@@ -37,6 +54,9 @@ export const useProjectStore = create((set, get) => ({
     try {
       const project = ProjectRepository.get(id);
       if (project) {
+        if (project.design) {
+          project.design.builtUpAreaSqFt = calculateBuiltUpArea(project.design);
+        }
         set({ 
           activeProject: project, 
           historyPast: [], 
@@ -61,6 +81,11 @@ export const useProjectStore = create((set, get) => ({
   saveActiveProject: (updated) => {
     const project = updated || get().activeProject;
     if (!project) return;
+
+    if (project.design) {
+      project.design.builtUpAreaSqFt = calculateBuiltUpArea(project.design);
+    }
+
     ProjectRepository.save(project);
     set({ activeProject: { ...project, updatedAt: new Date().toISOString() } });
     get().loadProjects();
@@ -76,7 +101,7 @@ export const useProjectStore = create((set, get) => ({
     const currentDesign = structuredClone(active.design);
     set((state) => ({
       historyPast: [currentDesign, ...state.historyPast].slice(0, MAX_HISTORY),
-      historyFuture: [], // Clear redo on new action
+      historyFuture: [], // Clear redo stack on new design action
     }));
   },
 
@@ -90,6 +115,8 @@ export const useProjectStore = create((set, get) => ({
     const previousDesign = historyPast[0];
     const newPast = historyPast.slice(1);
     const newFuture = [structuredClone(activeProject.design), ...historyFuture].slice(0, MAX_HISTORY);
+
+    previousDesign.builtUpAreaSqFt = calculateBuiltUpArea(previousDesign);
 
     const updated = {
       ...activeProject,
@@ -116,6 +143,8 @@ export const useProjectStore = create((set, get) => ({
     const newFuture = historyFuture.slice(1);
     const newPast = [structuredClone(activeProject.design), ...historyPast].slice(0, MAX_HISTORY);
 
+    nextDesign.builtUpAreaSqFt = calculateBuiltUpArea(nextDesign);
+
     const updated = {
       ...activeProject,
       design: nextDesign,
@@ -131,7 +160,7 @@ export const useProjectStore = create((set, get) => ({
   },
 
   /**
-   * Updates a single room's position or dimensions
+   * Updates a single room's position or dimensions safely using central validation
    * @param {number} floorLevel 
    * @param {object} updatedRoom 
    * @returns {{ success: boolean, error?: string }}
@@ -145,30 +174,25 @@ export const useProjectStore = create((set, get) => ({
       return { success: false, error: validation.error };
     }
 
-    // Save history snapshot before committing
-    get().pushHistorySnapshot();
+    const mutationResult = MutationEngine.executeMutation(active.design, (nextDesign) => {
+      const floor = nextDesign.floors.find((f) => f.level === floorLevel);
+      if (floor) {
+        const rIdx = floor.rooms.findIndex((r) => r.id === updatedRoom.id);
+        if (rIdx >= 0) {
+          floor.rooms[rIdx] = { ...floor.rooms[rIdx], ...updatedRoom };
+        }
+      }
+    });
 
-    const nextDesign = structuredClone(active.design);
-    const floor = nextDesign.floors.find((f) => f.level === floorLevel);
-    if (!floor) return { success: false, error: 'Invalid floor.' };
-
-    const rIdx = floor.rooms.findIndex((r) => r.id === updatedRoom.id);
-    if (rIdx >= 0) {
-      floor.rooms[rIdx] = { ...floor.rooms[rIdx], ...updatedRoom };
+    if (mutationResult.status === 'blocked' || !mutationResult.newPlan) {
+      return { success: false, error: mutationResult.error || 'Invalid room mutation.' };
     }
 
-    // Recalculate built-up area
-    let totalBuiltUp = 0;
-    nextDesign.floors.forEach(f => {
-      f.rooms.forEach(r => {
-        totalBuiltUp += (r.width * r.height);
-      });
-    });
-    nextDesign.builtUpAreaSqFt = Math.round(totalBuiltUp);
+    get().pushHistorySnapshot();
 
     const updatedProject = {
       ...active,
-      design: nextDesign,
+      design: mutationResult.newPlan,
     };
 
     ProjectRepository.save(updatedProject);
@@ -178,68 +202,81 @@ export const useProjectStore = create((set, get) => ({
   },
 
   /**
-   * Adds a new room to the active floor
+   * Adds a new room to the active floor safely
    */
   addRoom: (floorLevel, newRoom) => {
     const active = get().activeProject;
     if (!active || !active.design) return { success: false, error: 'No active design.' };
 
+    let createdRoom = null;
+
+    const mutationResult = MutationEngine.executeMutation(active.design, (nextDesign) => {
+      const floor = nextDesign.floors.find((f) => f.level === floorLevel);
+      if (floor) {
+        const roomToAdd = {
+          id: generateId('rm'),
+          type: newRoom.type || 'bedroom',
+          label: newRoom.label || 'New Room',
+          x: newRoom.x || 2,
+          y: newRoom.y || 2,
+          width: newRoom.width || 12,
+          height: newRoom.height || 12,
+          floor: floorLevel,
+          color: newRoom.color || '#F8FAFC',
+          required: false,
+        };
+
+        const safePos = MutationEngine.findSafePosition(nextDesign, floorLevel, roomToAdd, { targetX: roomToAdd.x, targetY: roomToAdd.y });
+        if (safePos) {
+          roomToAdd.x = safePos.x;
+          roomToAdd.y = safePos.y;
+        }
+
+        floor.rooms.push(roomToAdd);
+        createdRoom = roomToAdd;
+      }
+    });
+
+    if (mutationResult.status === 'blocked' || !mutationResult.newPlan || !createdRoom) {
+      return { success: false, error: mutationResult.error || 'Could not place new room safely.' };
+    }
+
     get().pushHistorySnapshot();
-    const nextDesign = structuredClone(active.design);
-    const floor = nextDesign.floors.find((f) => f.level === floorLevel);
-    if (!floor) return { success: false, error: 'Invalid floor.' };
 
-    const roomToAdd = {
-      id: generateId('rm'),
-      type: newRoom.type || 'bedroom',
-      label: newRoom.label || 'New Room',
-      x: newRoom.x || 2,
-      y: newRoom.y || 2,
-      width: newRoom.width || 12,
-      height: newRoom.height || 12,
-      floor: floorLevel,
-      color: newRoom.color || '#F8FAFC',
-      required: false,
-    };
-
-    floor.rooms.push(roomToAdd);
-
-    let totalBuiltUp = 0;
-    nextDesign.floors.forEach(f => f.rooms.forEach(r => totalBuiltUp += (r.width * r.height)));
-    nextDesign.builtUpAreaSqFt = Math.round(totalBuiltUp);
-
-    const updatedProject = { ...active, design: nextDesign };
+    const updatedProject = { ...active, design: mutationResult.newPlan };
     ProjectRepository.save(updatedProject);
     set({ activeProject: updatedProject });
     get().loadProjects();
-    return { success: true, room: roomToAdd };
+    return { success: true, room: createdRoom };
   },
 
   /**
-   * Removes a room from the active floor
+   * Removes a room from the active floor, cleanly removing associated openings & furniture
    */
   removeRoom: (floorLevel, roomId) => {
     const active = get().activeProject;
     if (!active || !active.design) return { success: false, error: 'No active design.' };
 
+    const mutationResult = MutationEngine.executeMutation(active.design, (nextDesign) => {
+      const floor = nextDesign.floors.find((f) => f.level === floorLevel);
+      if (floor) {
+        floor.rooms = floor.rooms.filter(r => r.id !== roomId);
+        if (floor.openings) {
+          floor.openings = floor.openings.filter(op => op.wallRoomId !== roomId);
+        }
+        if (floor.furniture) {
+          floor.furniture = floor.furniture.filter(f => f.roomId !== roomId);
+        }
+      }
+    });
+
+    if (mutationResult.status === 'blocked' || !mutationResult.newPlan) {
+      return { success: false, error: mutationResult.error || 'Failed to remove room.' };
+    }
+
     get().pushHistorySnapshot();
-    const nextDesign = structuredClone(active.design);
-    const floor = nextDesign.floors.find((f) => f.level === floorLevel);
-    if (!floor) return { success: false, error: 'Invalid floor.' };
 
-    floor.rooms = floor.rooms.filter(r => r.id !== roomId);
-    if (floor.openings) {
-      floor.openings = floor.openings.filter(op => op.wallRoomId !== roomId);
-    }
-    if (floor.furniture) {
-      floor.furniture = floor.furniture.filter(f => f.roomId !== roomId);
-    }
-
-    let totalBuiltUp = 0;
-    nextDesign.floors.forEach(f => f.rooms.forEach(r => totalBuiltUp += (r.width * r.height)));
-    nextDesign.builtUpAreaSqFt = Math.round(totalBuiltUp);
-
-    const updatedProject = { ...active, design: nextDesign };
+    const updatedProject = { ...active, design: mutationResult.newPlan };
     ProjectRepository.save(updatedProject);
     set({ activeProject: updatedProject });
     get().loadProjects();
@@ -248,37 +285,37 @@ export const useProjectStore = create((set, get) => ({
 
   /**
    * Automatically furnishes all rooms on the specified floor or all floors
-   * @param {number|'all'} floorLevel 
    */
   autoFurnishFloor: (floorLevel = 'all') => {
     const active = get().activeProject;
     if (!active || !active.design) return;
 
-    get().pushHistorySnapshot();
     import('../services/staging.js').then(({ StagingServiceInstance }) => {
       const updatedDesign = StagingServiceInstance.autoFurnishPlan(active.design, floorLevel);
-      const updatedProject = {
-        ...active,
-        design: updatedDesign,
-      };
-      ProjectRepository.save(updatedProject);
-      set({ activeProject: updatedProject });
-      get().loadProjects();
+      const validation = validatePlan(updatedDesign);
+      if (validation.valid) {
+        get().pushHistorySnapshot();
+        const updatedProject = {
+          ...active,
+          design: updatedDesign,
+        };
+        ProjectRepository.save(updatedProject);
+        set({ activeProject: updatedProject });
+        get().loadProjects();
+      }
     });
   },
 
   /**
    * Clears furniture staging on the specified floor
-   * @param {number|'all'} floorLevel 
-   * @param {string} [roomId=null]
    */
   clearFloorFurniture: (floorLevel = 'all', roomId = null) => {
     const active = get().activeProject;
     if (!active || !active.design) return;
 
-    get().pushHistorySnapshot();
     import('../services/staging.js').then(({ StagingServiceInstance }) => {
       const updatedDesign = StagingServiceInstance.clearStaging(active.design, floorLevel, roomId);
+      get().pushHistorySnapshot();
       const updatedProject = {
         ...active,
         design: updatedDesign,

@@ -163,7 +163,7 @@ export const DesignDetailsPage = () => {
         {/* Left: Drafted Logo, My Studio Tab, and Back Breadcrumb */}
         <div className="flex items-center gap-4">
           <Link to={`/projects/${project.id}`} className="font-serif text-2xl font-bold tracking-tight text-neutral-950">
-            Drafted
+            Planova
           </Link>
           <div className="h-5 w-px bg-neutral-300 hidden sm:block" />
           <Link
@@ -721,7 +721,7 @@ export const DesignDetailsPage = () => {
         <button
           onClick={() => setIsAiAssistantOpen(!isAiAssistantOpen)}
           className="w-13 h-13 rounded-full bg-[#0284C7] hover:bg-[#0369A1] text-white flex items-center justify-center shadow-2xl hover:scale-105 transition-all duration-200"
-          title="Drafted AI Architectural Assistant"
+          title="Planova AI Architectural Assistant"
         >
           {isAiAssistantOpen ? (
             <X className="w-6 h-6" />
@@ -740,7 +740,7 @@ export const DesignDetailsPage = () => {
                 <Sparkles className="w-4 h-4" />
               </div>
               <h3 className="font-serif text-sm font-bold text-neutral-900">
-                Drafted AI Architectural Copilot
+                Planova AI Architectural Copilot
               </h3>
             </div>
             <button

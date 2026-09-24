@@ -92,7 +92,7 @@ export const AppShell = ({ children }) => {
                 className="flex items-center gap-2 group focus:outline-hidden"
               >
                 <span className="font-serif text-2xl font-bold tracking-tight text-neutral-950">
-                  Drafted
+                  Planova
                 </span>
               </Link>
 
