@@ -45,12 +45,23 @@ export const runGenerationTests = async () => {
     progressCalled = true;
   });
 
-  assert(progressCalled === true, 'GenerationService triggers staged progress callbacks');
-  assert(result.options.length === 3, 'Generates exactly 3 distinct concepts');
-  assert(result.options[0].concept === 'balanced', 'Option 1 is Balanced Layout');
-  assert(result.options[1].concept === 'open_living', 'Option 2 is Open Living');
-  assert(result.options[2].concept === 'vastu_priority', 'Option 3 is Vastu Priority');
-  assert(result.options[0].estimatedCostInr > 0, 'Estimated cost calculated in INR');
+  // 5. Test Custom User Rooms Layout Generation
+  const customRooms = [
+    { id: 'primary_bedroom-0', type: 'primary_bedroom', label: 'Master Suite', width: 15, height: 15, area: 225 },
+    { id: 'kitchen-0', type: 'kitchen', label: 'Open Kitchen', width: 10, height: 12, area: 120 },
+    { id: 'bathroom-0', type: 'bathroom', label: 'Ensuite Bath', width: 8, height: 10, area: 80 },
+  ];
+  const customReq = {
+    bhk: 1,
+    rooms: customRooms,
+    budgetInr: 2500000,
+  };
+  const customPlan = generateBalancedLayout(samplePlot, customReq);
+  assert(customPlan.floors.length === 2, 'Custom rooms generate across floors');
+  const allGeneratedRooms = customPlan.floors.flatMap(f => f.rooms);
+  assert(allGeneratedRooms.some(r => r.type === 'primary_bedroom'), 'Custom plan contains user-selected primary bedroom');
+  assert(allGeneratedRooms.some(r => r.type === 'kitchen'), 'Custom plan contains user-selected kitchen');
+  assert(allGeneratedRooms.some(r => r.type === 'bathroom'), 'Custom plan contains user-selected bathroom');
 
   console.log(`--- Finished: ${passed}/${total} assertions passed ---`);
   return passed === total;

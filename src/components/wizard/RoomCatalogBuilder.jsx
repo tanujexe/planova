@@ -37,7 +37,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 15, height: 15, area: 225, label: '15 × 15 ft' },
       L: { width: 16, height: 17.5, area: 280, label: '16 × 17.5 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
   {
@@ -53,7 +53,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 12, height: 12.6, area: 152, label: '12 × 12.6 ft' },
       L: { width: 13, height: 15, area: 195, label: '13 × 15 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
   {
@@ -69,7 +69,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 8, height: 11, area: 88, label: '8 × 11 ft' },
       L: { width: 10, height: 11, area: 110, label: '10 × 11 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
   {
@@ -85,7 +85,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 7, height: 8.7, area: 61, label: '7 × 8.7 ft' },
       L: { width: 8, height: 10, area: 80, label: '8 × 10 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
   {
@@ -102,7 +102,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 7, height: 9, area: 62, label: '7 × 9 ft' },
       L: { width: 8, height: 10.5, area: 84, label: '8 × 10.5 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
   {
@@ -119,7 +119,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 4.5, height: 5.1, area: 23, label: '4.5 × 5.1 ft' },
       L: { width: 5, height: 7, area: 35, label: '5 × 7 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
 
@@ -137,7 +137,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 10, height: 13, area: 130, label: '10 × 13 ft' },
       L: { width: 12, height: 15, area: 180, label: '12 × 15 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
   {
@@ -153,7 +153,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 10, height: 12, area: 120, label: '10 × 12 ft' },
       L: { width: 12, height: 13.5, area: 162, label: '12 × 13.5 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
   {
@@ -201,7 +201,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 14, height: 15.7, area: 220, label: '14 × 15.7 ft' },
       L: { width: 17, height: 17.5, area: 298, label: '17 × 17.5 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
 
@@ -219,7 +219,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 6, height: 8, area: 48, label: '6 × 8 ft' },
       L: { width: 8, height: 9, area: 72, label: '8 × 9 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
   {
@@ -235,7 +235,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 11, height: 14, area: 154, label: '11 × 14 ft' },
       L: { width: 12, height: 18, area: 216, label: '12 × 18 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
   {
@@ -251,7 +251,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 6, height: 9, area: 54, label: '6 × 9 ft' },
       L: { width: 8, height: 10, area: 80, label: '8 × 10 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
   {
@@ -267,7 +267,7 @@ export const ROOM_DEFINITIONS = [
       M: { width: 6, height: 7.5, area: 45, label: '6 × 7.5 ft' },
       L: { width: 7, height: 10, area: 70, label: '7 × 10 ft' },
     },
-    defaultCount: 1,
+    defaultCount: 0,
     defaultSize: 'M',
   },
 ];
@@ -395,11 +395,21 @@ export const RoomCatalogBuilder = ({ onBuildProject }) => {
         setbacks: { front: 3, rear: 3, left: 2, right: 2 },
       },
       requirements: {
-        bhk: Math.max(1, bedCount),
-        bathrooms: Math.max(1, bathCount),
+        bhk: bedCount,
+        bathrooms: bathCount,
         attachedBathrooms: Math.min(bathCount, bedCount),
-        rooms: addedRooms.map(r => ({ type: r.typeId, count: 1, size: r.size })),
-        parking: { cars: roomSelections['parking']?.count || 1, twoWheelers: 1 },
+        rooms: addedRooms.map(r => ({
+          id: r.id,
+          type: r.typeId,
+          label: r.label,
+          size: r.size,
+          width: r.width,
+          height: r.height,
+          area: r.area,
+          color: r.color,
+          count: 1,
+        })),
+        parking: { cars: roomSelections['parking']?.count || 0, twoWheelers: 0 },
         ventilation: 'high',
         vastu: 'basic',
         budgetInr: budgetInr,
