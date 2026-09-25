@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  planova-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: planova:latest
+    container_name: planova-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - NODE_ENV=production

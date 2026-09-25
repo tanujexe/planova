@@ -1,0 +1,16 @@
+{
+  "name": "Planova — AI Architectural Copilot",
+  "short_name": "Planova",
+  "description": "Describe your plot and requirements. Planova helps you design, refine, visualize, and estimate your architectural home.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF9F5",
+  "theme_color": "#18181B",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
