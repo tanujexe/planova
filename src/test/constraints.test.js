@@ -1,4 +1,4 @@
-import { validatePlan, validateRoomMutation, doRectanglesOverlap } from '../domain/constraints.js';
+import { validatePlan, validateRoomMutation, doRectanglesOverlap, scorePlan } from '../domain/constraints.js';
 import { MutationEngine } from '../services/mutationEngine.js';
 import { SHARMA_RESIDENCE_PROJECT } from '../data/demoProject.js';
 
@@ -84,6 +84,31 @@ export const runConstraintsTests = () => {
   const master = basePlan.floors[0].rooms.find(r => r.type === 'master_bedroom');
   const safePos = MutationEngine.findSafePosition(basePlan, 0, master, 'rear_sw');
   assert(safePos !== null && safePos.x >= 0 && safePos.y >= 0, 'Safe position engine finds valid rear SW coordinates');
+
+  // 8. 4-Pillar Soft Scoring Engine test
+  const scoreResult = scorePlan(SHARMA_RESIDENCE_PROJECT.design);
+  assert(scoreResult.score >= 70, 'Sharma Residence achieves healthy soft score (>= 70)');
+  assert(scoreResult.breakdown.aspectRatioScore > 0, 'Aspect ratio score is positive');
+  assert(scoreResult.breakdown.adjacencyScore > 0, 'Adjacency score is positive');
+
+  // 9. Aspect Ratio bound penalty for distorted room
+  const distortedPlan = {
+    plot: { width: 30, length: 50 },
+    floors: [
+      {
+        level: 0,
+        rooms: [
+          { id: 'rm-skinny', label: 'Skinny Corridor Bed', type: 'bedroom', x: 2, y: 2, width: 4, height: 16 } // ratio 1:4.0
+        ],
+        openings: []
+      }
+    ]
+  };
+  const distortedScore = scorePlan(distortedPlan);
+  assert(
+    distortedScore.penalties.some(p => p.includes('aspect ratio distortion')),
+    'Distorted room (> 1:2.5) receives severe aspect ratio penalty'
+  );
 
   console.log(`--- Finished: ${passed}/${total} assertions passed ---`);
   return passed === total;

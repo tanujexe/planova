@@ -1,4 +1,5 @@
 import { EditService } from '../services/edit.js';
+import { MutationEngine } from '../services/mutationEngine.js';
 import { SHARMA_RESIDENCE_PROJECT } from '../data/demoProject.js';
 
 export const runEditTests = async () => {
@@ -56,6 +57,27 @@ export const runEditTests = async () => {
   const unsupportedRes = await EditService.propose({ plan: basePlan, prompt: 'Install a rocket launchpad', requirements: req });
   assert(unsupportedRes.status === 'unsupported', 'Unsupported prompt is safely rejected');
   assert(unsupportedRes.tradeoffs.length > 0, 'Offers helpful suggestions');
+
+  // 6. Phase 7: Confirm findSafePosition does not silently return original position
+  const congestedPlan = {
+    plot: { width: 25, length: 30 },
+    floors: [
+      {
+        level: 0,
+        rooms: [
+          { id: 'rm-m', type: 'master_bedroom', x: 2, y: 2, width: 14, height: 14 },
+          { id: 'rm-blocker', type: 'living', x: 0, y: 15, width: 25, height: 15 } // Fills entire rear zone
+        ]
+      }
+    ]
+  };
+  const blockedMovePos = MutationEngine.findSafePosition(
+    congestedPlan,
+    0,
+    congestedPlan.floors[0].rooms[0],
+    'rear_sw'
+  );
+  assert(blockedMovePos === null, 'findSafePosition returns null when target zone is blocked (no silent fallback)');
 
   console.log(`--- Finished: ${passed}/${total} assertions passed ---`);
   return passed === total;

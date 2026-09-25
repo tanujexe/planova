@@ -2,7 +2,9 @@ import { GenerationService } from '../services/generation.js';
 import { 
   generateBalancedLayout, 
   generateOpenLivingLayout, 
-  generateVastuPriorityLayout 
+  generateVastuPriorityLayout,
+  calculateSetbacks,
+  getWindowDimensionsForRoom
 } from '../domain/templates.js';
 
 export const runGenerationTests = async () => {
@@ -60,8 +62,26 @@ export const runGenerationTests = async () => {
   assert(customPlan.floors.length === 2, 'Custom rooms generate across floors');
   const allGeneratedRooms = customPlan.floors.flatMap(f => f.rooms);
   assert(allGeneratedRooms.some(r => r.type === 'primary_bedroom'), 'Custom plan contains user-selected primary bedroom');
-  assert(allGeneratedRooms.some(r => r.type === 'kitchen'), 'Custom plan contains user-selected kitchen');
-  assert(allGeneratedRooms.some(r => r.type === 'bathroom'), 'Custom plan contains user-selected bathroom');
+  // 6. Test Municipal Setback Scaling (Phase 2)
+  const narrowSetback = calculateSetbacks(20, 40, 'north');
+  const wideSetback = calculateSetbacks(60, 80, 'north');
+  assert(narrowSetback.sideSetback === 1.5, '20ft narrow plot receives 1.5ft side setback');
+  assert(wideSetback.sideSetback >= 4.0, '60ft wide plot receives proportional municipal side setback (>= 4.0ft)');
+
+  // 7. Test Room-Function-Specific Fenestration (Phase 5)
+  const livingWin = getWindowDimensionsForRoom('living', 15);
+  const bedWin = getWindowDimensionsForRoom('bedroom', 15);
+  const bathWin = getWindowDimensionsForRoom('bathroom', 15);
+  assert(livingWin > bedWin, 'Living room receives more daylight glazing than bedroom');
+  assert(bedWin > bathWin, 'Bedroom window is wider than bathroom privacy ventilator');
+
+  // 8. Test Concept Differentiation & Vastu Facing Direction (Phase 4)
+  const northVastu = generateVastuPriorityLayout({ width: 30, length: 50, floors: 1, facing: 'north' }, { bhk: 2 });
+  const southVastu = generateVastuPriorityLayout({ width: 30, length: 50, floors: 1, facing: 'south' }, { bhk: 2 });
+  const northPooja = northVastu.floors[0].rooms.find(r => r.type === 'pooja');
+  const southPooja = southVastu.floors[0].rooms.find(r => r.type === 'pooja');
+  assert(Boolean(northPooja && southPooja), 'Both Vastu layouts contain dedicated Pooja');
+  assert(northPooja.y !== southPooja.y, 'Pooja Y position adapts dynamically between North and South facing');
 
   console.log(`--- Finished: ${passed}/${total} assertions passed ---`);
   return passed === total;

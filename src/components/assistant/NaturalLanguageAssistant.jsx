@@ -8,7 +8,8 @@ import {
   ShieldCheck, 
   AlertCircle,
   Lock,
-  RotateCcw
+  RotateCcw,
+  PanelRightClose
 } from 'lucide-react';
 import { EditService } from '../../services/edit.js';
 
@@ -26,6 +27,7 @@ export const NaturalLanguageAssistant = ({
   onApplyMutation,
   onPreviewMutation,
   onClearPreview,
+  onMinimize,
 }) => {
   const [prompt, setPrompt] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -93,7 +95,7 @@ export const NaturalLanguageAssistant = ({
     <div className="flex-1 flex flex-col h-full bg-white overflow-hidden">
       
       {/* Header */}
-      <div className="p-4 border-b border-sand-200 shrink-0">
+      <div className="p-4 border-b border-sand-200 shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-xl bg-sage-500 text-white flex items-center justify-center shadow-subtle">
             <Sparkles className="w-4 h-4" />
@@ -107,6 +109,16 @@ export const NaturalLanguageAssistant = ({
             </p>
           </div>
         </div>
+        {onMinimize && (
+          <button
+            onClick={onMinimize}
+            className="p-1.5 text-ink-muted hover:text-ink hover:bg-sand-100 rounded-lg transition-colors"
+            title="Minimize AI Copilot"
+            aria-label="Minimize AI Copilot"
+          >
+            <PanelRightClose className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Messages Timeline (Independently Scrollable) */}

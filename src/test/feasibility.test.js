@@ -37,6 +37,40 @@ export const runFeasibilityTests = () => {
   const negativePlot = PlotSchema.safeParse({ width: -30, length: 50 });
   assert(negativePlot.success === false, 'Negative plot width is caught by Zod');
 
+  // 4. Dynamic sizing scales with BHK and plot size
+  const small2BHK = checkBriefFeasibility(
+    { width: 20, length: 40, floors: 1 },
+    { bhk: 2, bathrooms: 1, parking: { cars: 0, twoWheelers: 1 } }
+  );
+  const large4BHK = checkBriefFeasibility(
+    { width: 40, length: 60, floors: 2 },
+    { bhk: 4, bathrooms: 3, parking: { cars: 2, twoWheelers: 2 } }
+  );
+  assert(
+    large4BHK.dynamicRoomAreas.master_bedroom > small2BHK.dynamicRoomAreas.master_bedroom,
+    '4BHK master bed scales larger than 2BHK master bed'
+  );
+  assert(
+    large4BHK.dynamicRoomAreas.living > small2BHK.dynamicRoomAreas.living,
+    '4BHK living room scales larger than 2BHK living room'
+  );
+
+  // 5. Per-room minimum bounds warning
+  const undersizedRoomCheck = checkBriefFeasibility(
+    { width: 30, length: 50, floors: 2 },
+    {
+      bhk: 3,
+      bathrooms: 2,
+      rooms: [
+        { type: 'master_bedroom', label: 'Tiny Master', area: 90 } // Min is 130
+      ]
+    }
+  );
+  assert(
+    undersizedRoomCheck.warnings.some(w => w.includes('below architectural minimum')),
+    'Undersized master bedroom generates minimum area bound warning'
+  );
+
   console.log(`--- Finished: ${passed}/${total} assertions passed ---`);
   return passed === total;
 };

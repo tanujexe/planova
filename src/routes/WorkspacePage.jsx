@@ -14,7 +14,11 @@ import {
   RotateCcw,
   Armchair,
   Trash2,
-  Columns2
+  Columns2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen
 } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore.js';
 import { PlanCanvas } from '../components/design/PlanCanvas.jsx';
@@ -59,6 +63,8 @@ export const WorkspacePage = () => {
   const [previewPlan, setPreviewPlan] = useState(null);
   const [highlightedRoomIds, setHighlightedRoomIds] = useState([]);
   const [toastMsg, setToastMsg] = useState(null);
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   useEffect(() => {
     if (projectId) {
@@ -228,8 +234,25 @@ export const WorkspacePage = () => {
       {/* Top Workspace Toolbar */}
       <div className="bg-white border-b border-sand-300 px-4 sm:px-6 py-2.5 flex items-center justify-between shrink-0 z-10">
         
-        {/* Left: Floor Level Switcher & Undo/Redo */}
+        {/* Left: Rooms Toggle, Floor Level Switcher & Undo/Redo */}
         <div className="flex items-center gap-3">
+          {/* Toggle Left Sidebar (Rooms Schedule) */}
+          <button
+            onClick={() => setIsLeftPanelOpen(!isLeftPanelOpen)}
+            className={`p-1.5 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-semibold ${
+              isLeftPanelOpen
+                ? 'bg-sand-100 text-ink border-sand-300 hover:bg-sand-200'
+                : 'bg-white text-ink-muted border-sand-300 hover:text-ink hover:bg-sand-50'
+            }`}
+            title={isLeftPanelOpen ? "Minimize Rooms Schedule" : "Show Rooms Schedule"}
+            aria-label="Toggle Rooms Schedule"
+          >
+            {isLeftPanelOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4 text-sage-600" />}
+            <span className="hidden xl:inline text-[11px]">{isLeftPanelOpen ? 'Hide Rooms' : 'Rooms'}</span>
+          </button>
+
+          <div className="h-4 w-px bg-sand-300 hidden sm:block" />
+
           <div className="flex items-center gap-1 bg-sand-100 p-1 rounded-xl border border-sand-200">
             {plan.floors?.map((f) => (
               <button
@@ -284,7 +307,7 @@ export const WorkspacePage = () => {
           </div>
         </div>
 
-        {/* Center/Right: Staging Toggle, 3D & Status */}
+        {/* Center/Right: Staging Toggle, 3D & Status, CAD Export & Copilot Toggle */}
         <div className="flex items-center gap-2.5">
           <div className="hidden md:flex items-center gap-2 text-xs font-mono text-ink-muted">
             <span>{plan.plot?.width || 30} × {plan.plot?.length || 50} ft</span>
@@ -316,6 +339,23 @@ export const WorkspacePage = () => {
             <Download className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">CAD Export</span>
           </Link>
+
+          <div className="h-4 w-px bg-sand-300 hidden sm:block" />
+
+          {/* Toggle Right Sidebar (AI Copilot / Inspector) */}
+          <button
+            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+            className={`p-1.5 rounded-lg border transition-all flex items-center gap-1.5 text-xs font-semibold ${
+              isRightPanelOpen
+                ? 'bg-sand-100 text-ink border-sand-300 hover:bg-sand-200'
+                : 'bg-white text-ink-muted border-sand-300 hover:text-ink hover:bg-sand-50'
+            }`}
+            title={isRightPanelOpen ? "Minimize AI Copilot" : "Show AI Copilot"}
+            aria-label="Toggle AI Copilot"
+          >
+            {isRightPanelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4 text-sage-600" />}
+            <span className="hidden xl:inline text-[11px]">{isRightPanelOpen ? 'Hide Copilot' : 'Copilot'}</span>
+          </button>
         </div>
       </div>
 
@@ -323,61 +363,114 @@ export const WorkspacePage = () => {
       <div className="flex-1 min-h-0 flex overflow-hidden relative w-full">
         
         {/* 1. Left Section: Rooms Schedule (Independent Scrollable Column) */}
-        <aside className="w-64 bg-white border-r border-sand-300 flex flex-col shrink-0 h-full overflow-hidden z-10 shadow-xs">
-          {/* Fixed Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-sand-200 shrink-0 bg-sand-50/50">
-            <h3 className="font-display font-bold text-xs uppercase tracking-wider text-ink">
-              Rooms Schedule
-            </h3>
-            <span className="text-[10px] font-mono text-sage-800 bg-sage-100 px-2 py-0.5 rounded-full font-bold border border-sage-300">
-              {rooms.length} Spaces
-            </span>
-          </div>
+        <aside
+          className={`bg-white border-r border-sand-300 flex flex-col shrink-0 h-full overflow-hidden z-10 shadow-xs transition-all duration-300 ease-in-out ${
+            isLeftPanelOpen ? 'w-64 opacity-100' : 'w-0 opacity-0 border-r-0 pointer-events-none'
+          }`}
+        >
+          <div className="w-64 flex flex-col h-full shrink-0">
+            {/* Fixed Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-sand-200 shrink-0 bg-sand-50/50">
+              <div className="flex items-center gap-2">
+                <h3 className="font-display font-bold text-xs uppercase tracking-wider text-ink">
+                  Rooms Schedule
+                </h3>
+                <span className="text-[10px] font-mono text-sage-800 bg-sage-100 px-2 py-0.5 rounded-full font-bold border border-sage-300">
+                  {rooms.length} Spaces
+                </span>
+              </div>
+              <button
+                onClick={() => setIsLeftPanelOpen(false)}
+                className="p-1 text-ink-muted hover:text-ink hover:bg-sand-200/60 rounded-lg transition-colors"
+                title="Minimize Rooms Schedule"
+                aria-label="Minimize Rooms Schedule"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            </div>
 
-          {/* Scrollable Room List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {rooms.map((room) => {
-              const isSelected = selectedRoomId === room.id;
-              const isHighlighted = highlightedRoomIds.includes(room.id);
-              const area = Math.round(room.width * room.height);
+            {/* Scrollable Room List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {rooms.map((room) => {
+                const isSelected = selectedRoomId === room.id;
+                const isHighlighted = highlightedRoomIds.includes(room.id);
+                const area = Math.round(room.width * room.height);
 
-              return (
-                <button
-                  key={room.id}
-                  onClick={() => {
-                    setSelectedRoomId(room.id);
-                    setSelectedFurnitureId(null);
-                  }}
-                  className={`w-full p-2.5 rounded-xl border text-left transition-all ${
-                    isSelected
-                      ? 'bg-sage-50 border-sage-500 ring-2 ring-sage-500/20 shadow-subtle'
-                      : isHighlighted
-                      ? 'bg-terracotta-light/60 border-terracotta ring-2 ring-terracotta/30 animate-pulse'
-                      : 'bg-linen border-sand-200 hover:border-sand-300 hover:bg-sand-50 text-ink'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-display font-bold text-xs text-ink truncate">
-                      {room.label}
-                    </span>
-                    {room.type === 'pooja' && (
-                      <span className="text-[9px] bg-amber-100 text-amber-900 px-1 rounded font-bold border border-amber-300">
-                        NE
+                return (
+                  <button
+                    key={room.id}
+                    onClick={() => {
+                      setSelectedRoomId(room.id);
+                      setSelectedFurnitureId(null);
+                      setIsRightPanelOpen(true);
+                    }}
+                    className={`w-full p-2.5 rounded-xl border text-left transition-all ${
+                      isSelected
+                        ? 'bg-sage-50 border-sage-500 ring-2 ring-sage-500/20 shadow-subtle'
+                        : isHighlighted
+                        ? 'bg-terracotta-light/60 border-terracotta ring-2 ring-terracotta/30 animate-pulse'
+                        : 'bg-linen border-sand-200 hover:border-sand-300 hover:bg-sand-50 text-ink'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-display font-bold text-xs text-ink truncate">
+                        {room.label}
                       </span>
-                    )}
-                  </div>
-                  <div className="font-mono text-[10px] text-ink-muted flex items-center justify-between mt-1">
-                    <span>{room.width}&apos; × {room.height}&apos;</span>
-                    <span className="font-semibold text-ink">{area} sq.ft</span>
-                  </div>
-                </button>
-              );
-            })}
+                      {room.type === 'pooja' && (
+                        <span className="text-[9px] bg-amber-100 text-amber-900 px-1 rounded font-bold border border-amber-300">
+                          NE
+                        </span>
+                      )}
+                    </div>
+                    <div className="font-mono text-[10px] text-ink-muted flex items-center justify-between mt-1">
+                      <span>{room.width}&apos; × {room.height}&apos;</span>
+                      <span className="font-semibold text-ink">{area} sq.ft</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </aside>
 
         {/* 2. Center Section: Canvas / 2D / 3D Blueprint Area (Independent Viewport) */}
         <main className="flex-1 h-full min-w-0 relative flex flex-col overflow-hidden bg-linen">
+          {/* Docked Tab to Restore Left Panel (Rooms Schedule) */}
+          {!isLeftPanelOpen && (
+            <button
+              onClick={() => setIsLeftPanelOpen(true)}
+              className="absolute left-0 top-20 z-20 bg-white/95 hover:bg-white text-ink border border-l-0 border-sand-300 py-3 px-2 rounded-r-xl shadow-subtle hover:shadow-card flex flex-col items-center gap-2 transition-all group hover:pl-3"
+              title="Show Rooms Schedule"
+              aria-label="Show Rooms Schedule"
+            >
+              <PanelLeftOpen className="w-4 h-4 text-sage-600 group-hover:scale-110 transition-transform" />
+              <span 
+                className="text-[10px] font-bold text-ink-muted uppercase tracking-wider select-none"
+                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+              >
+                Rooms ({rooms.length})
+              </span>
+            </button>
+          )}
+
+          {/* Docked Tab to Restore Right Panel (AI Copilot / Room Inspector) */}
+          {!isRightPanelOpen && (
+            <button
+              onClick={() => setIsRightPanelOpen(true)}
+              className="absolute right-0 top-20 z-20 bg-white/95 hover:bg-white text-ink border border-r-0 border-sand-300 py-3 px-2 rounded-l-xl shadow-subtle hover:shadow-card flex flex-col items-center gap-2 transition-all group hover:pr-3"
+              title={selectedRoom ? "Show Room Inspector" : "Show AI Copilot"}
+              aria-label="Show AI Copilot"
+            >
+              <Sparkles className="w-4 h-4 text-sage-600 group-hover:scale-110 transition-transform" />
+              <span 
+                className="text-[10px] font-bold text-ink-muted uppercase tracking-wider select-none"
+                style={{ writingMode: 'vertical-rl' }}
+              >
+                {selectedRoom ? selectedRoom.label : 'AI Copilot'}
+              </span>
+            </button>
+          )}
+
           {/* 2D Plan View / Full Furnished Rendered Architectural View */}
           {(viewMode === '2d' || viewMode === 'rendered' || viewMode === 'split') && (
             <div className={`relative h-full ${viewMode === 'split' ? 'w-1/2 border-r border-[#EAE6DF]' : 'w-full'}`}>
@@ -391,6 +484,7 @@ export const WorkspacePage = () => {
                 onSelectRoom={(room) => {
                   setSelectedRoomId(room.id);
                   setSelectedFurnitureId(null);
+                  setIsRightPanelOpen(true);
                 }}
                 onUpdateRoom={handleRoomUpdate}
                 onSelectFurniture={(fId) => {
@@ -437,46 +531,63 @@ export const WorkspacePage = () => {
         </main>
 
         {/* 3. Right Section: AI Copilot Chat / Room Inspector (Independent Scrollable Column) */}
-        <aside className="w-80 lg:w-96 bg-white border-l border-sand-300 flex flex-col shrink-0 h-full overflow-hidden z-10 shadow-xs">
-          {selectedRoom ? (
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
-              {/* Fixed Inspector Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-sand-200 shrink-0 bg-sand-50/50">
-                <span className="font-display font-bold text-xs uppercase text-ink tracking-wider">
-                  Room Inspector
-                </span>
-                <button
-                  onClick={() => {
-                    removeRoom(activeFloorLevel, selectedRoom.id);
-                    setSelectedRoomId(null);
-                    showToast(`Deleted ${selectedRoom.label}`);
-                  }}
-                  className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-xs font-semibold flex items-center gap-1"
-                  title="Delete Room"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
-                </button>
+        <aside
+          className={`bg-white border-l border-sand-300 flex flex-col shrink-0 h-full overflow-hidden z-10 shadow-xs transition-all duration-300 ease-in-out ${
+            isRightPanelOpen ? 'w-80 lg:w-96 opacity-100' : 'w-0 opacity-0 border-l-0 pointer-events-none'
+          }`}
+        >
+          <div className="w-80 lg:w-96 flex flex-col h-full shrink-0">
+            {selectedRoom ? (
+              <div className="flex-1 flex flex-col h-full overflow-hidden">
+                {/* Fixed Inspector Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-sand-200 shrink-0 bg-sand-50/50">
+                  <span className="font-display font-bold text-xs uppercase text-ink tracking-wider">
+                    Room Inspector
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        removeRoom(activeFloorLevel, selectedRoom.id);
+                        setSelectedRoomId(null);
+                        showToast(`Deleted ${selectedRoom.label}`);
+                      }}
+                      className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors text-xs font-semibold flex items-center gap-1 mr-1"
+                      title="Delete Room"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                    <button
+                      onClick={() => setIsRightPanelOpen(false)}
+                      className="p-1 text-ink-muted hover:text-ink hover:bg-sand-200/60 rounded-lg transition-colors"
+                      title="Minimize Inspector"
+                      aria-label="Minimize Inspector"
+                    >
+                      <PanelRightClose className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                {/* Scrollable Inspector Controls */}
+                <div className="flex-1 overflow-y-auto p-4">
+                  <RoomInspector
+                    room={selectedRoom}
+                    plot={plan.plot || { width: 30, length: 50 }}
+                    onUpdateRoom={handleRoomUpdate}
+                    onClose={() => setSelectedRoomId(null)}
+                  />
+                </div>
               </div>
-              {/* Scrollable Inspector Controls */}
-              <div className="flex-1 overflow-y-auto p-4">
-                <RoomInspector
-                  room={selectedRoom}
-                  plot={plan.plot || { width: 30, length: 50 }}
-                  onUpdateRoom={handleRoomUpdate}
-                  onClose={() => setSelectedRoomId(null)}
-                />
-              </div>
-            </div>
-          ) : (
-            <NaturalLanguageAssistant
-              plan={project.design || plan}
-              requirements={project.requirements || {}}
-              onApplyMutation={handleApplyMutation}
-              onPreviewMutation={handlePreviewMutation}
-              onClearPreview={handleClearPreview}
-            />
-          )}
+            ) : (
+              <NaturalLanguageAssistant
+                plan={project.design || plan}
+                requirements={project.requirements || {}}
+                onApplyMutation={handleApplyMutation}
+                onPreviewMutation={handlePreviewMutation}
+                onClearPreview={handleClearPreview}
+                onMinimize={() => setIsRightPanelOpen(false)}
+              />
+            )}
+          </div>
         </aside>
 
       </div>

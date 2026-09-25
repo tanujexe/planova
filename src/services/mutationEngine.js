@@ -78,15 +78,19 @@ export class MutationEngine {
   }
 
   /**
-   * Finds a safe candidate position for a room near a target zone or target coordinates
+   * Finds a safe candidate position for a room near a target zone or target coordinates.
+   * Prevents silent fallback bugs by guaranteeing that the candidate is collision-free
+   * and represents a genuine spatial relocation (never returning the room's original position).
+   * 
    * @param {object} plan 
    * @param {number} floorLevel 
    * @param {object} roomToPlace 
    * @param {'rear' | 'rear_sw' | 'front' | 'center' | 'left' | 'right' | { targetX: number, targetY: number }} targetSpec 
    * @param {string[]} [ignoreRoomIds=[]] 
+   * @param {number} [minDisplacement=1.5] - Minimum displacement required from original position
    * @returns {{ x: number, y: number } | null}
    */
-  static findSafePosition(plan, floorLevel, roomToPlace, targetSpec, ignoreRoomIds = []) {
+  static findSafePosition(plan, floorLevel, roomToPlace, targetSpec, ignoreRoomIds = [], minDisplacement = 1.5) {
     const plotW = Number(plan.plot.width) || 30;
     const plotL = Number(plan.plot.length) || 50;
 
@@ -97,6 +101,7 @@ export class MutationEngine {
 
     let targetX = roomToPlace.x;
     let targetY = roomToPlace.y;
+    let maxAllowedDist = null;
 
     if (typeof targetSpec === 'string') {
       switch (targetSpec) {
@@ -104,20 +109,25 @@ export class MutationEngine {
         case 'rear_sw':
           targetX = 2;
           targetY = Math.max(0, plotL - rh - 2);
+          maxAllowedDist = Math.max(8, plotL * 0.40);
           break;
         case 'front':
           targetX = 2;
           targetY = 2;
+          maxAllowedDist = Math.max(8, plotL * 0.40);
           break;
         case 'center':
           targetX = Math.max(0, (plotW - rw) / 2);
           targetY = Math.max(0, (plotL - rh) / 2);
+          maxAllowedDist = Math.max(plotW, plotL) * 0.40;
           break;
         case 'left':
           targetX = 2;
+          maxAllowedDist = plotW * 0.45;
           break;
         case 'right':
           targetX = Math.max(0, plotW - rw - 2);
+          maxAllowedDist = plotW * 0.45;
           break;
       }
     } else if (targetSpec && typeof targetSpec.targetX === 'number') {
@@ -139,6 +149,12 @@ export class MutationEngine {
 
     for (let x = 0; x <= maxX; x += step) {
       for (let y = 0; y <= maxY; y += step) {
+        // Enforce genuine relocation: reject candidates that are practically identical to current location
+        const displacement = Math.hypot(x - roomToPlace.x, y - roomToPlace.y);
+        if (minDisplacement > 0 && displacement < minDisplacement) {
+          continue;
+        }
+
         const testRect = { x, y, width: rw, height: rh };
         let collides = false;
 
@@ -151,7 +167,11 @@ export class MutationEngine {
 
         if (!collides) {
           const dist = Math.hypot(x - targetX, y - targetY);
-          candidates.push({ x, y, dist });
+          // If a target zone was requested, ensure the candidate actually resides in that zone
+          if (maxAllowedDist !== null && dist > maxAllowedDist) {
+            continue;
+          }
+          candidates.push({ x, y, dist, displacement });
         }
       }
     }

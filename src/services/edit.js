@@ -167,11 +167,8 @@ class DesignEditService {
           if (safePos) {
             master.x = safePos.x;
             master.y = safePos.y;
-          } else {
-            master.x = 2;
-            master.y = Math.max(20, mutatedPlan.plot.length - master.height - 4);
+            master.label = 'Master Bedroom (Rear SW)';
           }
-          master.label = 'Master Bedroom (Rear SW)';
         }
       },
       lockedRoomIds
@@ -291,18 +288,21 @@ class DesignEditService {
         if (safePos) {
           m.x = safePos.x;
           m.y = safePos.y;
-        } else {
-          m.y = Math.max(20, plan.plot.length - m.height - 4);
+          m.label = 'Master Bedroom (Rear)';
         }
-        m.label = 'Master Bedroom (Rear)';
       }
     });
 
-    if (result.status === 'blocked' || !result.newPlan) {
+    const movedMaster = result.newPlan?.floors[0]?.rooms?.find(r => r.type === 'master_bedroom');
+    const hasMoved = movedMaster && (movedMaster.x !== master.x || movedMaster.y !== master.y);
+
+    if (result.status === 'blocked' || !result.newPlan || !hasMoved) {
       return {
         status: 'blocked',
         explanation: 'Could not find a valid collision-free position at the rear for Master Bedroom.',
-        tradeoffs: result.warnings || [],
+        tradeoffs: result.warnings && result.warnings.length > 0
+          ? result.warnings
+          : ['The rear South-West zone is already occupied by adjacent spaces or setbacks.'],
       };
     }
 
