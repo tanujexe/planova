@@ -82,7 +82,7 @@ export const ExportPage = () => {
         particleCount: 100,
         spread: 80,
         origin: { y: 0.6 },
-        colors: ['#0284C7', '#38BDF8', '#0F172A', '#F59E0B'],
+        colors: ['#18181B', '#E0582B', '#EBE6DC', '#C89B3C'],
       });
       showToast('Downloaded AutoCAD .DXF Drawing File!');
     } catch (err) {
@@ -140,22 +140,21 @@ export const ExportPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
             
             {/* AutoCAD DXF Export Card */}
-            <div className="p-6 bg-slate-900 text-white rounded-2xl border border-slate-700 shadow-elevated flex flex-col justify-between space-y-4 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-28 h-28 bg-sky-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="p-6 bg-linen rounded-2xl border border-sand-300 shadow-subtle hover:border-sand-400 transition-all flex flex-col justify-between space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center border border-sky-500/30">
+                  <div className="w-10 h-10 rounded-xl bg-neutral-950 text-white flex items-center justify-center shadow-xs">
                     <FileCode className="w-5 h-5" />
                   </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-sky-500/20 text-sky-300 border border-sky-400/30 rounded-full">
+                  <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2.5 py-0.5 bg-sand-200 text-neutral-800 border border-sand-300 rounded-full">
                     AutoCAD / BIM
                   </span>
                 </div>
-                <h3 className="font-display font-bold text-base text-white">
+                <h3 className="font-display font-bold text-base text-ink">
                   AutoCAD DXF (.dxf)
                 </h3>
-                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                  Layered 2D CAD vector drawing (`WALLS`, `DOORS`, `WINDOWS`, `FURNITURE`, `ROOM_LABELS`, `DIMENSIONS`) ready for AutoCAD, Revit, ArchiCAD & SketchUp.
+                <p className="text-xs text-ink-muted mt-1 leading-relaxed">
+                  Layered 2D CAD vector drawing (<span className="font-mono text-[11px] text-neutral-800 bg-sand-200/60 px-1 py-0.5 rounded">WALLS</span>, <span className="font-mono text-[11px] text-neutral-800 bg-sand-200/60 px-1 py-0.5 rounded">DOORS</span>, <span className="font-mono text-[11px] text-neutral-800 bg-sand-200/60 px-1 py-0.5 rounded">WINDOWS</span>, <span className="font-mono text-[11px] text-neutral-800 bg-sand-200/60 px-1 py-0.5 rounded">FURNITURE</span>) ready for AutoCAD, Revit, ArchiCAD & SketchUp.
                 </p>
               </div>
 
@@ -163,7 +162,7 @@ export const ExportPage = () => {
                 type="button"
                 onClick={handleDownloadDxf}
                 disabled={isExportingDxf}
-                className="w-full py-3 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-xs shadow-lg hover:shadow-sky-500/25 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-neutral-950 hover:bg-neutral-800 disabled:opacity-50 text-white font-semibold rounded-xl text-xs shadow-xs hover:shadow transition-all flex items-center justify-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 <span>{isExportingDxf ? 'Generating DXF...' : 'Export AutoCAD (.dxf)'}</span>
@@ -171,10 +170,15 @@ export const ExportPage = () => {
             </div>
 
             {/* PDF Summary Export Card */}
-            <div className="p-6 bg-linen rounded-2xl border border-sand-300 shadow-subtle flex flex-col justify-between space-y-4">
+            <div className="p-6 bg-linen rounded-2xl border border-sand-300 shadow-subtle hover:border-sand-400 transition-all flex flex-col justify-between space-y-4">
               <div>
-                <div className="w-10 h-10 rounded-xl bg-terracotta-100 text-terracotta-700 flex items-center justify-center mb-3">
-                  <FileText className="w-5 h-5" />
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-terracotta-100 text-terracotta-700 flex items-center justify-center">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2.5 py-0.5 bg-terracotta-50 text-terracotta-800 border border-terracotta-200 rounded-full">
+                    A4 Presentation
+                  </span>
                 </div>
                 <h3 className="font-display font-bold text-base text-ink">
                   Client Concept Summary PDF
@@ -196,10 +200,15 @@ export const ExportPage = () => {
             </div>
 
             {/* Printable Blueprint Sheet Card */}
-            <div className="p-6 bg-linen rounded-2xl border border-sand-300 shadow-subtle flex flex-col justify-between space-y-4">
+            <div className="p-6 bg-linen rounded-2xl border border-sand-300 shadow-subtle hover:border-sand-400 transition-all flex flex-col justify-between space-y-4">
               <div>
-                <div className="w-10 h-10 rounded-xl bg-sand-100 text-slate-700 flex items-center justify-center mb-3">
-                  <ImageIcon className="w-5 h-5" />
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-sand-200 text-neutral-800 flex items-center justify-center">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2.5 py-0.5 bg-sand-200 text-neutral-800 border border-sand-300 rounded-full">
+                    Browser Print
+                  </span>
                 </div>
                 <h3 className="font-display font-bold text-base text-ink">
                   Printable Blueprint Sheet
@@ -212,7 +221,7 @@ export const ExportPage = () => {
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="w-full py-3 bg-sand-200 hover:bg-sand-300 text-ink rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-sand-200 hover:bg-sand-300 text-ink rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 border border-sand-300"
               >
                 <Printer className="w-4 h-4" />
                 <span>Print Document</span>
@@ -231,35 +240,107 @@ export const ExportPage = () => {
             <span className="text-[10px] font-mono text-ink-muted">Standard Title Block</span>
           </div>
 
-          <div className="p-6 bg-slate-900 rounded-2xl border border-slate-700 space-y-5 text-xs text-white">
-            <div className="flex justify-between items-start pb-3 border-b border-slate-700">
+          <div className="p-6 bg-linen rounded-2xl border border-sand-300 space-y-5 text-xs bg-blueprint-grid shadow-subtle">
+            <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-sand-300">
               <div>
-                <span className="text-[10px] uppercase font-bold text-sky-400 block tracking-wider">PROJECT TITLE</span>
-                <h4 className="font-display text-lg font-bold text-white">{project.name}</h4>
-                <p className="text-slate-400">{project.location} • {project.plot?.width}×{project.plot?.length} ft • {project.requirements?.bhk} BHK</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-mono font-bold text-terracotta-700 tracking-wider">
+                    Project Title Block
+                  </span>
+                  <span className="text-[10px] font-mono text-neutral-400">•</span>
+                  <span className="text-[10px] font-mono text-ink-muted uppercase">
+                    Drawing Sheet A-101
+                  </span>
+                </div>
+                <h4 className="font-serif text-xl font-bold text-ink mt-1">
+                  {project.name}
+                </h4>
+                <p className="text-ink-muted text-xs font-mono mt-1 flex flex-wrap items-center gap-2">
+                  <span>{project.location}</span>
+                  <span>•</span>
+                  <span>{project.plot?.width} × {project.plot?.length} ft</span>
+                  <span>•</span>
+                  <span>{project.requirements?.bhk} BHK</span>
+                  {project.plot?.facing && (
+                    <>
+                      <span>•</span>
+                      <span className="capitalize">{project.plot.facing} Facing</span>
+                    </>
+                  )}
+                </p>
               </div>
               <div className="text-right">
-                <span className="font-mono text-[10px] text-slate-400 block uppercase">CAD Export Layers</span>
-                <span className="font-mono text-xs text-sky-300 font-bold">7 Structured Layers</span>
+                <span className="font-mono text-[10px] text-ink-muted block uppercase font-medium">
+                  CAD Export Package
+                </span>
+                <span className="font-mono text-xs text-ink font-bold bg-white px-2.5 py-1 rounded-lg border border-sand-300 inline-block mt-1 shadow-2xs">
+                  7 Structured CAD Layers
+                </span>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
-              <div className="p-2 bg-slate-800 rounded-lg border border-slate-700">
-                <span className="text-[9px] text-slate-400 block">Layer 1</span>
-                <span className="font-bold text-white">WALLS (Double-line)</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 font-mono text-[11px]">
+              <div className="p-3 bg-white rounded-xl border border-sand-200 shadow-2xs hover:border-sand-300 transition-colors">
+                <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase">
+                  <span>Layer 1</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-950" />
+                </div>
+                <span className="font-bold text-neutral-950 block mt-1">WALLS</span>
+                <span className="text-[10px] text-neutral-500 block truncate">Double-line</span>
               </div>
-              <div className="p-2 bg-slate-800 rounded-lg border border-slate-700">
-                <span className="text-[9px] text-slate-400 block">Layer 2</span>
-                <span className="font-bold text-red-400">DOORS (90° Arcs)</span>
+
+              <div className="p-3 bg-white rounded-xl border border-sand-200 shadow-2xs hover:border-sand-300 transition-colors">
+                <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase">
+                  <span>Layer 2</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-terracotta-500" />
+                </div>
+                <span className="font-bold text-terracotta-700 block mt-1">DOORS</span>
+                <span className="text-[10px] text-neutral-500 block truncate">90° Swings</span>
               </div>
-              <div className="p-2 bg-slate-800 rounded-lg border border-slate-700">
-                <span className="text-[9px] text-slate-400 block">Layer 3</span>
-                <span className="font-bold text-sky-400">WINDOWS (Frames)</span>
+
+              <div className="p-3 bg-white rounded-xl border border-sand-200 shadow-2xs hover:border-sand-300 transition-colors">
+                <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase">
+                  <span>Layer 3</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                </div>
+                <span className="font-bold text-amber-800 block mt-1">WINDOWS</span>
+                <span className="text-[10px] text-neutral-500 block truncate">Glazed Frames</span>
               </div>
-              <div className="p-2 bg-slate-800 rounded-lg border border-slate-700">
-                <span className="text-[9px] text-slate-400 block">Layer 4</span>
-                <span className="font-bold text-green-400">FURNITURE (Staged)</span>
+
+              <div className="p-3 bg-white rounded-xl border border-sand-200 shadow-2xs hover:border-sand-300 transition-colors">
+                <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase">
+                  <span>Layer 4</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                </div>
+                <span className="font-bold text-emerald-800 block mt-1">FURNITURE</span>
+                <span className="text-[10px] text-neutral-500 block truncate">Staged Layout</span>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-sand-200 shadow-2xs hover:border-sand-300 transition-colors">
+                <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase">
+                  <span>Layer 5</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-700" />
+                </div>
+                <span className="font-bold text-neutral-800 block mt-1">LABELS</span>
+                <span className="text-[10px] text-neutral-500 block truncate">Names & Area</span>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-sand-200 shadow-2xs hover:border-sand-300 transition-colors">
+                <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase">
+                  <span>Layer 6</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-600" />
+                </div>
+                <span className="font-bold text-neutral-800 block mt-1">DIMENSIONS</span>
+                <span className="text-[10px] text-neutral-500 block truncate">Span Strings</span>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-sand-200 shadow-2xs hover:border-sand-300 transition-colors">
+                <div className="flex items-center justify-between text-[9px] text-ink-muted uppercase">
+                  <span>Layer 7</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-terracotta-600" />
+                </div>
+                <span className="font-bold text-terracotta-800 block mt-1">TITLE_BLOCK</span>
+                <span className="text-[10px] text-neutral-500 block truncate">Border & Stamp</span>
               </div>
             </div>
           </div>
