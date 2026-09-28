@@ -167,13 +167,14 @@ export const solveFloorLayout = ({
   const extraFrontW = frontAvailW - (fW + pW);
   let curFrontX = frontAvailX;
 
-  // Entrance Verandah / Open Porch if extra front width exists
+  // Front Zone: Verandah / Balcony + Foyer / Upper Landing
+  let verandahId = null;
   if (extraFrontW >= 5.0) {
-    const verandahId = generateId('rm_verandah');
+    verandahId = generateId('rm_verandah');
     placedRooms.push({
       id: verandahId,
       type: 'balcony',
-      label: 'Entrance Verandah & Sit-out',
+      label: floorLevel === 0 ? 'Entrance Verandah & Sit-out' : 'Front Terrace Balcony',
       x: curFrontX,
       y: currentY,
       width: extraFrontW,
@@ -184,13 +185,17 @@ export const solveFloorLayout = ({
     curFrontX += extraFrontW;
   }
 
-  // Foyer placement
+  // Foyer / Upper Landing placement
   const foyerId = foyer?.id || generateId('rm_foyer');
   const actualFoyerW = extraFrontW >= 5.0 ? fW : (frontAvailW - pW);
+  const foyerLabel = floorLevel === 0
+    ? (foyer?.label || 'Entrance Foyer')
+    : (foyer?.label || 'Upper Lounge Lobby');
+
   placedRooms.push({
     id: foyerId,
     type: 'foyer',
-    label: foyer?.label || 'Entrance Foyer',
+    label: foyerLabel,
     x: curFrontX,
     y: currentY,
     width: actualFoyerW,
@@ -199,15 +204,39 @@ export const solveFloorLayout = ({
     color: getColor('foyer'),
   });
 
-  // Main entrance door
-  openings.push({
-    id: generateId('op_door_main'),
-    type: 'door',
-    wallRoomId: foyerId,
-    wallSide: fFacing === 'south' ? 'bottom' : 'top',
-    offset: 2.0,
-    width: 3.5,
-  });
+  // Entrance door or Upper Landing Fenestration
+  if (floorLevel === 0) {
+    // Main street entrance door on Ground Floor
+    openings.push({
+      id: generateId('op_door_main'),
+      type: 'door',
+      wallRoomId: foyerId,
+      wallSide: fFacing === 'south' ? 'bottom' : 'top',
+      offset: 2.0,
+      width: 3.5,
+    });
+  } else {
+    // Upper Floor: Window on exterior wall, and sliding door to balcony if balcony exists
+    openings.push({
+      id: generateId('op_win_landing'),
+      type: 'window',
+      wallRoomId: foyerId,
+      wallSide: fFacing === 'south' ? 'bottom' : 'top',
+      offset: 1.5,
+      width: 3.0,
+    });
+    if (verandahId) {
+      openings.push({
+        id: generateId('op_door_balc'),
+        type: 'door',
+        wallRoomId: foyerId,
+        wallSide: 'left',
+        offset: 1.5,
+        width: 3.0,
+        connectsToRoomId: verandahId,
+      });
+    }
+  }
   curFrontX += actualFoyerW;
 
   // Pooja placement (East/North corner)
@@ -248,10 +277,11 @@ export const solveFloorLayout = ({
   // -------------------------------------------------------------------------
   // ZONE 2: MIDDLE SOCIAL ZONE (Living Hall + Dining / Staircase)
   // -------------------------------------------------------------------------
+  const defaultLivLabel = floorLevel === 0 ? 'Living & Dining Hall' : 'Upper Family Lounge';
   const living = interiorRooms.find(r => r.type === 'living') || {
     id: generateId('rm_living'),
     type: 'living',
-    label: 'Living & Dining Hall',
+    label: defaultLivLabel,
   };
   const dining = interiorRooms.find(r => r.type === 'dining');
 
@@ -291,7 +321,7 @@ export const solveFloorLayout = ({
     placedRooms.push({
       id: livId,
       type: 'living',
-      label: living.label || 'Living & Dining Hall',
+      label: living.label || defaultLivLabel,
       x: frontAvailX,
       y: currentY,
       width: frontAvailW,
@@ -618,50 +648,149 @@ export const solveFloorLayout = ({
   } else if (availW < 20.0) {
     // -----------------------------------------------------------------------
     // TOPOLOGY B: Narrow Row-House Rear Arrangement (usableW < 20 ft, e.g. 20x40)
-    // Left Bay (10.5 ft): Master Bedroom Suite
-    // Right Bay (6.5 ft): Modular Kitchen + Master Bathroom
     // -----------------------------------------------------------------------
-    const servW = Math.max(6.8, Math.round(availW * 0.40));
-    const bedW = availW - servW;
+    if (!kitchen) {
+      // Upper floor or no-kitchen floor: Bed takes full width, Bath along depth
+      const bathH = Math.min(6.5, Math.max(5.5, Math.round(actualRearH * 0.35)));
+      const bedH = actualRearH - bathH;
 
-    // Left Bay: Master Bedroom Suite
-    if (masterBed) {
-      const mbId = masterBed.id || generateId('rm_master');
-      placedRooms.push({
-        id: mbId,
-        type: masterBed.type,
-        label: masterBed.label || 'Master Bedroom Suite',
-        x: availX,
-        y: currentY,
-        width: bedW,
-        height: actualRearH,
-        floor: floorLevel,
-        color: getColor(masterBed.type),
-      });
-      openings.push({
-        id: generateId('op_win_mb'),
-        type: 'window',
-        wallRoomId: mbId,
-        wallSide: 'left',
-        offset: 2.0,
-        width: 4.0,
-      });
-      openings.push({
-        id: generateId('op_door_mb'),
-        type: 'door',
-        wallRoomId: mbId,
-        wallSide: 'top',
-        offset: 1.5,
-        width: 3.0,
-        connectsToRoomId: corrId,
-      });
-    }
+      if (masterBed) {
+        const mbId = masterBed.id || generateId('rm_master');
+        placedRooms.push({
+          id: mbId,
+          type: masterBed.type,
+          label: masterBed.label || 'Master Bedroom Suite',
+          x: availX,
+          y: currentY,
+          width: availW,
+          height: bedH,
+          floor: floorLevel,
+          color: getColor(masterBed.type),
+        });
+        openings.push({
+          id: generateId('op_win_mb'),
+          type: 'window',
+          wallRoomId: mbId,
+          wallSide: 'left',
+          offset: 2.0,
+          width: 4.0,
+        });
+        openings.push({
+          id: generateId('op_door_mb'),
+          type: 'door',
+          wallRoomId: mbId,
+          wallSide: 'top',
+          offset: 1.5,
+          width: 3.0,
+          connectsToRoomId: corrId,
+        });
+      }
 
-    // Right Bay: Modular Kitchen (front) + Master Bath (rear)
-    const kitH = Math.max(7.5, Math.min(8.5, Math.round(actualRearH * 0.55)));
-    const bathH = actualRearH - kitH;
+      const bath = baths[0];
+      if (bath) {
+        const bId = bath.id || generateId('rm_bath');
+        const bathW = Math.min(availW, 6.8);
+        placedRooms.push({
+          id: bId,
+          type: bath.type,
+          label: bath.label || 'Master Bathroom',
+          x: availX,
+          y: currentY + bedH,
+          width: bathW,
+          height: bathH,
+          floor: floorLevel,
+          color: getColor('bathroom'),
+        });
+        openings.push({
+          id: generateId('op_win_bath'),
+          type: 'window',
+          wallRoomId: bId,
+          wallSide: 'bottom',
+          offset: 1.0,
+          width: 2.0,
+        });
+        openings.push({
+          id: generateId('op_door_bath'),
+          type: 'door',
+          wallRoomId: bId,
+          wallSide: 'top',
+          offset: 1.0,
+          width: 2.5,
+          connectsToRoomId: masterBed?.id,
+        });
 
-    if (kitchen) {
+        // Remainder of rear width becomes walk-in wardrobe / dressing
+        const dressW = availW - bathW;
+        if (dressW >= 4.5) {
+          const dressId = generateId('rm_dress');
+          placedRooms.push({
+            id: dressId,
+            type: 'primary_closet',
+            label: 'Walk-in Wardrobe',
+            x: availX + bathW,
+            y: currentY + bedH,
+            width: dressW,
+            height: bathH,
+            floor: floorLevel,
+            color: '#FDF2F8',
+          });
+          openings.push({
+            id: generateId('op_door_dress'),
+            type: 'door',
+            wallRoomId: dressId,
+            wallSide: 'top',
+            offset: 1.0,
+            width: 2.5,
+            connectsToRoomId: masterBed?.id,
+          });
+        }
+      }
+    } else {
+      // Ground floor with Kitchen: Left Bay (Bedroom), Right Bay (Kitchen + Bath)
+      let servW = Math.max(6.0, Math.min(6.8, Math.round(availW * 0.40)));
+      let bedW = availW - servW;
+      if (bedW < 9.5 && availW >= 15.5) {
+        bedW = 9.5;
+        servW = availW - bedW;
+      }
+
+      // Left Bay: Master Bedroom Suite
+      if (masterBed) {
+        const mbId = masterBed.id || generateId('rm_master');
+        placedRooms.push({
+          id: mbId,
+          type: masterBed.type,
+          label: masterBed.label || 'Master Bedroom Suite',
+          x: availX,
+          y: currentY,
+          width: bedW,
+          height: actualRearH,
+          floor: floorLevel,
+          color: getColor(masterBed.type),
+        });
+        openings.push({
+          id: generateId('op_win_mb'),
+          type: 'window',
+          wallRoomId: mbId,
+          wallSide: 'left',
+          offset: 2.0,
+          width: 4.0,
+        });
+        openings.push({
+          id: generateId('op_door_mb'),
+          type: 'door',
+          wallRoomId: mbId,
+          wallSide: 'top',
+          offset: 1.5,
+          width: 3.0,
+          connectsToRoomId: corrId,
+        });
+      }
+
+      // Right Bay: Modular Kitchen (front) + Master Bath (rear)
+      const kitH = Math.max(7.5, Math.min(8.5, Math.round(actualRearH * 0.55)));
+      const bathH = actualRearH - kitH;
+
       const kId = kitchen.id || generateId('rm_kitchen');
       placedRooms.push({
         id: kId,
@@ -691,39 +820,39 @@ export const solveFloorLayout = ({
         width: 2.8,
         connectsToRoomId: corrId,
       });
-    }
 
-    const bath = baths[0];
-    if (bath) {
-      const bId = bath.id || generateId('rm_bath');
-      placedRooms.push({
-        id: bId,
-        type: bath.type,
-        label: bath.label || 'Master Bathroom',
-        x: availX + bedW,
-        y: currentY + kitH,
-        width: servW,
-        height: bathH,
-        floor: floorLevel,
-        color: getColor('bathroom'),
-      });
-      openings.push({
-        id: generateId('op_win_bath'),
-        type: 'window',
-        wallRoomId: bId,
-        wallSide: 'bottom',
-        offset: 1.0,
-        width: 2.0,
-      });
-      openings.push({
-        id: generateId('op_door_bath'),
-        type: 'door',
-        wallRoomId: bId,
-        wallSide: 'left',
-        offset: 1.0,
-        width: 2.5,
-        connectsToRoomId: masterBed?.id,
-      });
+      const bath = baths[0];
+      if (bath) {
+        const bId = bath.id || generateId('rm_bath');
+        placedRooms.push({
+          id: bId,
+          type: bath.type,
+          label: bath.label || 'Master Bathroom',
+          x: availX + bedW,
+          y: currentY + kitH,
+          width: servW,
+          height: bathH,
+          floor: floorLevel,
+          color: getColor('bathroom'),
+        });
+        openings.push({
+          id: generateId('op_win_bath'),
+          type: 'window',
+          wallRoomId: bId,
+          wallSide: 'bottom',
+          offset: 1.0,
+          width: 2.0,
+        });
+        openings.push({
+          id: generateId('op_door_bath'),
+          type: 'door',
+          wallRoomId: bId,
+          wallSide: 'left',
+          offset: 1.0,
+          width: 2.5,
+          connectsToRoomId: masterBed?.id,
+        });
+      }
     }
   } else if (actualRearH > 22.0) {
     // -----------------------------------------------------------------------
