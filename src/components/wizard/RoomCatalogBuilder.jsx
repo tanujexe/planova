@@ -500,7 +500,7 @@ export const RoomCatalogBuilder = ({ onBuildProject }) => {
                     setPlotLength(p.l);
                   }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                    plotWidth === p.w && plotLength === p.l
+                    Number(plotWidth) === p.w && Number(plotLength) === p.l
                       ? 'bg-neutral-950 text-white border-neutral-950 shadow-xs'
                       : 'bg-white text-neutral-700 border-[#DDD7CD] hover:bg-[#FAF8F5]'
                   }`}
@@ -517,10 +517,25 @@ export const RoomCatalogBuilder = ({ onBuildProject }) => {
                   Width (ft)
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={plotWidth}
-                  onChange={(e) => setPlotWidth(Math.max(15, Number(e.target.value)))}
-                  className="w-full px-3 py-2 rounded-xl bg-white border border-[#DDD7CD] text-xs font-bold text-neutral-900"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      setPlotWidth(val);
+                    }
+                  }}
+                  onBlur={() => {
+                    const num = parseFloat(plotWidth);
+                    if (isNaN(num) || num <= 0) {
+                      setPlotWidth(30);
+                    } else {
+                      setPlotWidth(Math.min(300, Math.max(10, num)));
+                    }
+                  }}
+                  placeholder="30"
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-[#DDD7CD] text-xs font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-950/20 focus:border-neutral-950 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
 
@@ -529,10 +544,25 @@ export const RoomCatalogBuilder = ({ onBuildProject }) => {
                   Length / Depth (ft)
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={plotLength}
-                  onChange={(e) => setPlotLength(Math.max(20, Number(e.target.value)))}
-                  className="w-full px-3 py-2 rounded-xl bg-white border border-[#DDD7CD] text-xs font-bold text-neutral-900"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                      setPlotLength(val);
+                    }
+                  }}
+                  onBlur={() => {
+                    const num = parseFloat(plotLength);
+                    if (isNaN(num) || num <= 0) {
+                      setPlotLength(50);
+                    } else {
+                      setPlotLength(Math.min(500, Math.max(15, num)));
+                    }
+                  }}
+                  placeholder="50"
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-[#DDD7CD] text-xs font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-950/20 focus:border-neutral-950 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
 

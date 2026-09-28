@@ -167,12 +167,25 @@ export const PlotStep = ({
             </label>
             <div className="relative">
               <input
-                type="number"
-                min="10"
-                max="200"
-                value={formData.plot.width}
-                onChange={(e) => onChange('plot.width', parseFloat(e.target.value) || 0)}
-                className={`w-full px-3.5 py-2.5 text-sm bg-linen border rounded-xl text-ink font-mono focus:outline-none focus:ring-2 transition-all ${
+                type="text"
+                inputMode="decimal"
+                value={formData.plot.width ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    onChange('plot.width', val);
+                  }
+                }}
+                onBlur={() => {
+                  const num = parseFloat(formData.plot.width);
+                  if (isNaN(num) || num <= 0) {
+                    onChange('plot.width', 30);
+                  } else {
+                    onChange('plot.width', Math.min(300, Math.max(10, num)));
+                  }
+                }}
+                placeholder="30"
+                className={`w-full px-3.5 py-2.5 text-sm bg-linen border rounded-xl text-ink font-mono focus:outline-none focus:ring-2 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                   errors['plot.width'] 
                     ? 'border-terracotta focus:ring-terracotta/20 focus:border-terracotta' 
                     : 'border-sand-300 focus:ring-sage-500/20 focus:border-sage-500'
@@ -193,12 +206,25 @@ export const PlotStep = ({
             </label>
             <div className="relative">
               <input
-                type="number"
-                min="15"
-                max="300"
-                value={formData.plot.length}
-                onChange={(e) => onChange('plot.length', parseFloat(e.target.value) || 0)}
-                className={`w-full px-3.5 py-2.5 text-sm bg-linen border rounded-xl text-ink font-mono focus:outline-none focus:ring-2 transition-all ${
+                type="text"
+                inputMode="decimal"
+                value={formData.plot.length ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    onChange('plot.length', val);
+                  }
+                }}
+                onBlur={() => {
+                  const num = parseFloat(formData.plot.length);
+                  if (isNaN(num) || num <= 0) {
+                    onChange('plot.length', 50);
+                  } else {
+                    onChange('plot.length', Math.min(500, Math.max(15, num)));
+                  }
+                }}
+                placeholder="50"
+                className={`w-full px-3.5 py-2.5 text-sm bg-linen border rounded-xl text-ink font-mono focus:outline-none focus:ring-2 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                   errors['plot.length'] 
                     ? 'border-terracotta focus:ring-terracotta/20 focus:border-terracotta' 
                     : 'border-sand-300 focus:ring-sage-500/20 focus:border-sage-500'

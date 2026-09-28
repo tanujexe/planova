@@ -1,6 +1,11 @@
 import { generateId } from '../lib/ids.js';
+import { ROOM_STANDARDS, CIRCULATION_CONFIG, PARKING_CONFIG, STAIRCASE_CONFIG, getRoomStandard } from './config.js';
+import { buildRoomProgram } from './programBuilder.js';
+import { selectCirculationTopology, generateCorridorGeometry, TOPOLOGY_TYPES } from './circulation.js';
+import { allocateParking } from './parking.js';
+import { scorePlan, validatePlan, doRectanglesOverlap, doRectanglesTouch } from './constraints.js';
 import { computeDynamicRoomAreas, ROOM_AREA_BOUNDS } from '../services/feasibility.js';
-import { scorePlan, validatePlan } from './constraints.js';
+import { solveFloorLayout } from './architecturalSolver.js';
 
 /**
  * Intelligent Architectural Spatial Layout Engine
@@ -32,14 +37,13 @@ const ROOM_COLORS = {
   balcony: '#E2E8F0',
   staircase: '#EDE8DF',
   study: '#E7E2D8',
+  corridor: '#F4EFE6',
 };
 
 export const getColor = (type) => ROOM_COLORS[type] || '#EFE8DC';
 
 /**
  * Phase 2 — Calculates building setbacks based on municipal slabs (NBC / BBMP) and plot-size ratios.
- * Adapts side setbacks smoothly between narrow plots (20ft -> 1.5ft) and wide plots (60ft+ -> 4.5-5.5ft),
- * and dynamically directs front setbacks to the road-facing side.
  */
 export const calculateSetbacks = (plotW, plotL, facing = 'north') => {
   const w = Number(plotW) || 30;
@@ -98,7 +102,6 @@ export const calculateSetbacks = (plotW, plotL, facing = 'north') => {
 
 /**
  * Phase 5 — Room-function-specific fenestration sizing
- * Glazing dimensions tailored to room type and functional daylight requirements.
  */
 export const getWindowDimensionsForRoom = (roomType, availableWallLength) => {
   const maxSafeW = Math.max(1.5, availableWallLength - 1.0);
@@ -189,26 +192,28 @@ export const ensurePlanContainment = (plan) => {
 export const getDefaultRoomsForBrief = (bhk = 3, floorsCount = 2, hasPooja = true, hasParking = true) => {
   const rooms = [];
   if (hasParking) {
-    rooms.push({ id: generateId('rm_park'), type: 'parking', label: 'Covered Parking', width: 11, height: 14, area: 154 });
+    rooms.push({ id: generateId('rm_park'), type: 'parking', label: 'Covered Parking (9×18 ft)', width: 9, height: 18, area: 162 });
   }
-  rooms.push({ id: generateId('rm_foyer'), type: 'foyer', label: 'Entrance Foyer', width: 7, height: 8, area: 56 });
+  rooms.push({ id: generateId('rm_foyer'), type: 'foyer', label: 'Entrance Foyer', width: 7, height: 7, area: 49 });
   if (hasPooja) {
     rooms.push({ id: generateId('rm_pooja'), type: 'pooja', label: 'Pooja Room', width: 6, height: 6, area: 36 });
   }
-  rooms.push({ id: generateId('rm_living'), type: 'living', label: 'Living & Dining Hall', width: 16, height: 14, area: 224 });
-  rooms.push({ id: generateId('rm_kitchen'), type: 'kitchen', label: 'Modular Kitchen & Utility', width: 10, height: 10, area: 100 });
+  rooms.push({ id: generateId('rm_living'), type: 'living', label: 'Living & Dining Hall', width: 16, height: 16, area: 256 });
+  rooms.push({ id: generateId('rm_kitchen'), type: 'kitchen', label: 'Modular Kitchen', width: 10, height: 10, area: 100 });
+  rooms.push({ id: generateId('rm_utility'), type: 'utility', label: 'Utility & Wash', width: 6, height: 8, area: 48 });
   rooms.push({ id: generateId('rm_master'), type: 'master_bedroom', label: 'Master Bedroom Suite', width: 14, height: 14, area: 196 });
   rooms.push({ id: generateId('rm_bath1'), type: 'primary_bathroom', label: 'Master Bathroom', width: 6, height: 8, area: 48 });
 
   if (bhk >= 2) {
-    rooms.push({ id: generateId('rm_bed2'), type: 'bedroom', label: 'Bedroom 2 (Guest Suite)', width: 12, height: 12, area: 144 });
+    rooms.push({ id: generateId('rm_bed2'), type: 'bedroom', label: 'Bedroom 2', width: 12, height: 12, area: 144 });
     rooms.push({ id: generateId('rm_bath2'), type: 'bathroom', label: 'Common Bathroom', width: 5, height: 7, area: 35 });
   }
   if (bhk >= 3) {
-    rooms.push({ id: generateId('rm_bed3'), type: 'bedroom', label: "Bedroom 3 (Kids' Room)", width: 12, height: 12, area: 144 });
+    rooms.push({ id: generateId('rm_bed3'), type: 'bedroom', label: 'Bedroom 3', width: 12, height: 12, area: 144 });
   }
   if (bhk >= 4) {
-    rooms.push({ id: generateId('rm_bed4'), type: 'bedroom', label: 'Bedroom 4 (Study / Suite)', width: 12, height: 11, area: 132 });
+    rooms.push({ id: generateId('rm_bed4'), type: 'bedroom', label: 'Bedroom 4', width: 12, height: 11, area: 132 });
+    rooms.push({ id: generateId('rm_bath3'), type: 'bathroom', label: 'Bathroom 3', width: 5, height: 7, area: 35 });
   }
   if (floorsCount >= 2) {
     rooms.push({ id: generateId('rm_balcony'), type: 'balcony', label: 'Front Terrace Balcony', width: 12, height: 6, area: 72 });
@@ -217,8 +222,7 @@ export const getDefaultRoomsForBrief = (bhk = 3, floorsCount = 2, hasPooja = tru
 };
 
 /**
- * Phase 3 — Intelligently distributes rooms across floors, ensuring public/service zones
- * on ground and private bedroom suites on upper levels.
+ * Distributes rooms across floors ensuring functional public/service on ground and private suites on upper floors.
  */
 export const distributeRoomsAcrossFloors = (userRooms, floorsCount) => {
   if (floorsCount <= 1) {
@@ -240,7 +244,7 @@ export const distributeRoomsAcrossFloors = (userRooms, floorsCount) => {
       groundPreferred.push(r);
     } else if (upperTypes.includes(type)) {
       upperPreferred.push(r);
-    } else if (type === 'primary_bedroom' || type === 'bedroom' || type === 'master_bedroom') {
+    } else if (type === 'primary_bedroom' || type === 'master_bedroom' || type === 'bedroom') {
       if (groundBedCount === 0) {
         groundPreferred.push(r);
         groundBedCount++;
@@ -289,441 +293,53 @@ export const distributeRoomsAcrossFloors = (userRooms, floorsCount) => {
 };
 
 /**
- * Phase 4 & Phase 5 — Core Spatial Layout Generator for a Single Floor
- * Uses derived dynamic area weights, aspect-ratio-aware tier splits,
- * dynamic staircase placement without entrance collision, and room-specific fenestration.
+ * Seeded Pseudo-Random Number Generator (Mulberry32) for reproducible candidate variation
  */
-export const layoutFloorWithRooms = ({
-  rooms = [],
-  setbacks,
-  concept = 'balanced',
-  floorLevel = 0,
-  floorsCount = 1,
-  facing = 'north',
-  plot = {},
-  requirements = {},
-  variantOptions = {},
-}) => {
-  const { leftX, topY, usableW, usableL } = setbacks;
-  const placedRooms = [];
-  const openings = [];
-
-  if (rooms.length === 0) {
-    const rmId = generateId(`rm_terrace_f${floorLevel}`);
-    placedRooms.push({
-      id: rmId,
-      type: 'balcony',
-      label: floorLevel === 0 ? 'Open Courtyard' : 'Open Terrace & Garden',
-      x: leftX,
-      y: topY,
-      width: usableW,
-      height: usableL,
-      floor: floorLevel,
-      color: getColor('balcony'),
-    });
-    return { rooms: placedRooms, openings };
-  }
-
-  // Phase 1 dynamic room area lookup
-  const dynamicAreas = computeDynamicRoomAreas(plot, requirements);
-
-  const roomList = [...rooms];
-  const needsStaircase = floorsCount >= 2 && !roomList.some(r => r.type === 'staircase');
-  if (needsStaircase) {
-    roomList.push({
-      id: generateId(`rm_stair_f${floorLevel}`),
-      type: 'staircase',
-      label: floorLevel === 0 ? 'Internal Staircase' : 'Staircase Landing',
-      width: 7,
-      height: 10,
-      area: 70,
-    });
-  }
-
-  // Phase 4: Genuinely Differentiate Open Living Concept on Ground Floor
-  // If concept is open_living on ground floor, merge living, dining, and kitchen into an expansive core
-  if (concept === 'open_living' && floorLevel === 0) {
-    const livingRoom = roomList.find(r => r.type === 'living');
-    const diningRoom = roomList.find(r => r.type === 'dining');
-    const kitchenRoom = roomList.find(r => r.type === 'kitchen');
-
-    if (livingRoom || diningRoom || kitchenRoom) {
-      // Retain rooms that are NOT part of the open living-dining-kitchen core
-      const peripheralRooms = roomList.filter(
-        r => r.type !== 'living' && r.type !== 'dining' && r.type !== 'kitchen'
-      );
-
-      // Define Great Room polygon bounding box (taking ~45-50% of usable length)
-      const coreH = Math.max(12, Math.floor(usableL * 0.46));
-      const frontH = Math.max(8, Math.floor((usableL - coreH) * 0.50));
-      const rearH = Math.max(8, usableL - frontH - coreH);
-
-      // Front tier rooms (e.g. parking, foyer, pooja)
-      const frontRooms = peripheralRooms.filter(r => ['parking', 'foyer', 'pooja'].includes(r.type));
-      // Rear tier rooms (e.g. master bedroom, bathroom, utility, staircase)
-      const rearRooms = peripheralRooms.filter(r => !['parking', 'foyer', 'pooja'].includes(r.type));
-
-      let currentY = topY;
-
-      // 1. Layout Front Tier
-      if (frontRooms.length > 0) {
-        const totalReq = frontRooms.reduce((sum, r) => sum + (Number(r.area) || dynamicAreas[r.type] || 100), 0) || 1;
-        let curX = leftX;
-        frontRooms.forEach((r, idx) => {
-          const isLast = idx === frontRooms.length - 1;
-          const req = Number(r.area) || dynamicAreas[r.type] || 100;
-          const w = isLast ? Math.max(3, leftX + usableW - curX) : Math.max(3, Math.floor(usableW * (req / totalReq)));
-          const rmId = r.id || generateId(`rm_${r.type}`);
-          placedRooms.push({
-            id: rmId,
-            type: r.type,
-            label: r.label || r.type,
-            x: curX,
-            y: currentY,
-            width: w,
-            height: frontH,
-            floor: floorLevel,
-            color: r.color || getColor(r.type),
-          });
-          // Door or window
-          if (r.type === 'foyer' || r.type === 'parking') {
-            openings.push({ id: generateId('op_door'), type: 'door', wallRoomId: rmId, wallSide: 'top', offset: 1.5, width: 3.0 });
-          } else {
-            const winW = getWindowDimensionsForRoom(r.type, w);
-            openings.push({ id: generateId('op_win'), type: 'window', wallRoomId: rmId, wallSide: 'top', offset: 1.0, width: winW });
-          }
-          curX += w;
-        });
-        currentY += frontH;
-      }
-
-      // 2. Layout Merged Open Living + Dining + Kitchen Great Room Core
-      const coreId = generateId('rm_great_room_core');
-      placedRooms.push({
-        id: coreId,
-        type: 'living',
-        label: 'Open Living, Dining & Island Kitchen Core',
-        x: leftX,
-        y: currentY,
-        width: usableW,
-        height: coreH,
-        floor: floorLevel,
-        color: getColor('living'),
-      });
-      // Large panoramic fenestration for open core
-      openings.push({
-        id: generateId('op_win_core_l'),
-        type: 'window',
-        wallRoomId: coreId,
-        wallSide: 'left',
-        offset: 2.0,
-        width: Math.min(coreH - 2, 6.0),
-      });
-      openings.push({
-        id: generateId('op_win_core_r'),
-        type: 'window',
-        wallRoomId: coreId,
-        wallSide: 'right',
-        offset: 2.0,
-        width: Math.min(coreH - 2, 6.0),
-      });
-      currentY += coreH;
-
-      // 3. Layout Rear Tier
-      if (rearRooms.length > 0) {
-        const totalReq = rearRooms.reduce((sum, r) => sum + (Number(r.area) || dynamicAreas[r.type] || 100), 0) || 1;
-        let curX = leftX;
-        rearRooms.forEach((r, idx) => {
-          const isLast = idx === rearRooms.length - 1;
-          const req = Number(r.area) || dynamicAreas[r.type] || 100;
-          const w = isLast ? Math.max(3, leftX + usableW - curX) : Math.max(3, Math.floor(usableW * (req / totalReq)));
-          const rmId = r.id || generateId(`rm_${r.type}`);
-          placedRooms.push({
-            id: rmId,
-            type: r.type,
-            label: r.label || r.type,
-            x: curX,
-            y: currentY,
-            width: w,
-            height: rearH,
-            floor: floorLevel,
-            color: r.color || getColor(r.type),
-          });
-          const winW = getWindowDimensionsForRoom(r.type, w);
-          openings.push({ id: generateId('op_win'), type: 'window', wallRoomId: rmId, wallSide: 'bottom', offset: 1.5, width: winW });
-          curX += w;
-        });
-      }
-
-      return { rooms: placedRooms, openings };
-    }
-  }
-
-  // Phase 4: Vastu Priority Directional Quadrants driven by actual facing
-  // Map directional quadrants according to actual plot facing
-  const isVastu = concept === 'vastu_priority';
-
-  // Zone classifications
-  const frontTypes = ['parking', 'foyer', 'pooja', 'balcony'];
-  const middleTypes = ['living', 'dining', 'staircase', 'study', 'breakfast_nook'];
-  const rearTypes = ['primary_bedroom', 'bedroom', 'master_bedroom', 'guest_bedroom', 'kitchen', 'pantry', 'utility', 'primary_bathroom', 'bathroom', 'primary_closet', 'bed_closet'];
-
-  const frontTier = [];
-  const middleTier = [];
-  const rearTier = [];
-
-  roomList.forEach((r) => {
-    const type = r.type || '';
-    if (isVastu) {
-      // Vastu quadrant awareness
-      const f = (facing || 'north').toLowerCase();
-      if (type === 'pooja') {
-        // Pooja belongs in NE
-        (f === 'north' || f === 'east') ? frontTier.push(r) : rearTier.push(r);
-      } else if (type === 'kitchen' || type === 'utility') {
-        // Kitchen belongs in SE
-        (f === 'south' || f === 'east') ? frontTier.push(r) : rearTier.push(r);
-      } else if (type === 'master_bedroom' || type === 'primary_bedroom') {
-        // Master belongs in SW
-        (f === 'south' || f === 'west') ? frontTier.push(r) : rearTier.push(r);
-      } else if (type === 'parking' || type === 'foyer') {
-        frontTier.push(r);
-      } else if (middleTypes.includes(type)) {
-        middleTier.push(r);
-      } else {
-        rearTier.push(r);
-      }
-    } else {
-      if (frontTypes.includes(type)) {
-        frontTier.push(r);
-      } else if (middleTypes.includes(type)) {
-        middleTier.push(r);
-      } else if (rearTypes.includes(type)) {
-        rearTier.push(r);
-      } else {
-        middleTier.push(r);
-      }
-    }
-  });
-
-  const tiers = [];
-  if (frontTier.length > 0) tiers.push({ name: 'front', rooms: frontTier });
-  if (middleTier.length > 0) tiers.push({ name: 'middle', rooms: middleTier });
-  if (rearTier.length > 0) tiers.push({ name: 'rear', rooms: rearTier });
-
-  if (tiers.length === 1 && tiers[0].rooms.length > 3) {
-    const all = tiers[0].rooms;
-    const mid = Math.ceil(all.length / 2);
-    tiers[0].rooms = all.slice(0, mid);
-    tiers.push({ name: 'rear', rooms: all.slice(mid) });
-  }
-
-  // Phase 4: Aspect-Ratio-Aware Tier Heights
-  const numTiers = tiers.length;
-  const plotAspectRatio = usableL / usableW;
-  const ratioDelta = variantOptions.tierRatioDelta || 0;
-  let tierHeights = [];
-
-  if (numTiers === 1) {
-    tierHeights = [usableL];
-  } else if (numTiers === 2) {
-    let splitRatio = 0.46;
-    if (plotAspectRatio > 1.6) splitRatio = 0.40;
-    else if (plotAspectRatio < 1.0) splitRatio = 0.50;
-    splitRatio = Math.max(0.35, Math.min(0.65, splitRatio + ratioDelta));
-
-    const h1 = Math.max(6, Math.floor(usableL * splitRatio));
-    tierHeights = [h1, usableL - h1];
-  } else {
-    // 3 Tiers: proportioned by aspect ratio and target room areas
-    let h1Ratio = 0.28;
-    let h2Ratio = 0.38;
-
-    if (plotAspectRatio > 1.6) {
-      // Long narrow plot: expand middle core for circulation
-      h1Ratio = 0.24;
-      h2Ratio = 0.42;
-    } else if (plotAspectRatio < 1.0) {
-      // Wide/shallow plot
-      h1Ratio = 0.32;
-      h2Ratio = 0.36;
-    }
-
-    h1Ratio = Math.max(0.20, Math.min(0.35, h1Ratio + ratioDelta));
-    const h1 = Math.max(6, Math.floor(usableL * h1Ratio));
-    const h2 = Math.max(7, Math.floor(usableL * h2Ratio));
-    tierHeights = [h1, h2, usableL - (h1 + h2)];
-  }
-
-  // Phase 3: Determine entrance side in front tier to locate staircase safely
-  let entranceOnLeft = true;
-  if (frontTier.length > 1) {
-    const foyerIdx = frontTier.findIndex(r => r.type === 'foyer' || r.type === 'living');
-    if (foyerIdx >= frontTier.length / 2) {
-      entranceOnLeft = false;
-    }
-  }
-  if (variantOptions.stairSide === 'flipped') {
-    entranceOnLeft = !entranceOnLeft;
-  }
-
-  let currentY = topY;
-
-  tiers.forEach((tier, tierIdx) => {
-    const tierH = tierHeights[tierIdx] || Math.floor(usableL / numTiers);
-    const tierRooms = tier.rooms;
-
-    // Sort rooms in tier:
-    // If entrance is on left, staircase should be placed on the right (and vice versa)
-    tierRooms.sort((a, b) => {
-      if (a.type === 'staircase') return entranceOnLeft ? 1 : -1;
-      if (b.type === 'staircase') return entranceOnLeft ? -1 : 1;
-
-      if (isVastu) {
-        const vastuWeights = {
-          parking: 1,
-          foyer: 2,
-          pooja: 3,
-          living: 4,
-          dining: 5,
-          utility: 6,
-          kitchen: 7,
-          master_bedroom: 1,
-          bedroom: 2,
-          bathroom: 3,
-        };
-        return (vastuWeights[a.type] || 5) - (vastuWeights[b.type] || 5);
-      }
-
-      const defaultWeights = {
-        parking: 1,
-        foyer: 2,
-        pooja: 3,
-        living: 2,
-        dining: 3,
-        kitchen: 4,
-        master_bedroom: 1,
-        bedroom: 2,
-        bathroom: 3,
-      };
-      return (defaultWeights[a.type] || 3) - (defaultWeights[b.type] || 3);
-    });
-
-    // Phase 4: Derived room weights from required areas
-    const totalReqArea = tierRooms.reduce((acc, r) => {
-      const a = Number(r.area) || dynamicAreas[r.type] || ROOM_AREA_BOUNDS[r.type]?.default || 120;
-      return acc + a;
-    }, 0) || 1;
-
-    let currentX = leftX;
-
-    tierRooms.forEach((r, rIdx) => {
-      const isLast = rIdx === tierRooms.length - 1;
-      const reqArea = Number(r.area) || dynamicAreas[r.type] || ROOM_AREA_BOUNDS[r.type]?.default || 120;
-      let roomW = isLast
-        ? Math.max(3, leftX + usableW - currentX)
-        : Math.max(3, Math.floor(usableW * (reqArea / totalReqArea)));
-
-      if (currentX + roomW > leftX + usableW) {
-        roomW = Math.max(3, leftX + usableW - currentX);
-      }
-
-      const roomId = r.id || generateId(`rm_${r.type || 'room'}`);
-      const type = r.type || 'living';
-
-      placedRooms.push({
-        id: roomId,
-        type: type,
-        label: r.label || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        x: currentX,
-        y: currentY,
-        width: roomW,
-        height: tierH,
-        floor: floorLevel,
-        color: r.color || getColor(type),
-      });
-
-      // Phase 5: Room-type-specific fenestration sizing
-      if (tierIdx === 0 && (type === 'foyer' || type === 'living' || type === 'parking')) {
-        openings.push({
-          id: generateId('op_door'),
-          type: 'door',
-          wallRoomId: roomId,
-          wallSide: 'top',
-          offset: Math.min(1.5, Math.max(0.5, Number((roomW * 0.2).toFixed(1)))),
-          width: 3.0,
-        });
-      } else if (tierIdx === 0) {
-        const winW = getWindowDimensionsForRoom(type, roomW);
-        openings.push({
-          id: generateId('op_win'),
-          type: 'window',
-          wallRoomId: roomId,
-          wallSide: 'top',
-          offset: Math.min(2.0, Math.max(0.5, Number((roomW * 0.25).toFixed(1)))),
-          width: winW,
-        });
-      }
-
-      if (tierIdx === numTiers - 1 && type !== 'staircase') {
-        const winW = getWindowDimensionsForRoom(type, roomW);
-        openings.push({
-          id: generateId('op_win'),
-          type: 'window',
-          wallRoomId: roomId,
-          wallSide: 'bottom',
-          offset: Math.min(2.0, Math.max(0.5, Number((roomW * 0.25).toFixed(1)))),
-          width: winW,
-        });
-      }
-
-      if (rIdx === 0 && type !== 'staircase' && type !== 'parking') {
-        const winW = getWindowDimensionsForRoom(type, tierH);
-        openings.push({
-          id: generateId('op_win'),
-          type: 'window',
-          wallRoomId: roomId,
-          wallSide: 'left',
-          offset: Math.min(2.0, Math.max(0.5, Number((tierH * 0.25).toFixed(1)))),
-          width: winW,
-        });
-      }
-
-      if (isLast && type !== 'staircase') {
-        const winW = getWindowDimensionsForRoom(type, tierH);
-        openings.push({
-          id: generateId('op_win'),
-          type: 'window',
-          wallRoomId: roomId,
-          wallSide: 'right',
-          offset: Math.min(2.0, Math.max(0.5, Number((tierH * 0.25).toFixed(1)))),
-          width: winW,
-        });
-      }
-
-      currentX += roomW;
-    });
-
-    currentY += tierH;
-  });
-
-  return { rooms: placedRooms, openings };
+export const createRng = (seed = 42) => {
+  let s = Math.abs(seed) || 42;
+  return () => {
+    let t = (s += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 };
 
 /**
- * Phase 4 & Phase 6 — Generates multiple design candidates, evaluates them with soft scoring,
- * and keeps the highest scoring geometrically valid candidate.
+ * Layouts a single floor using architectural zoning, dimension-first placement,
+ * explicit circulation corridors, and NBC setback envelopes.
+ */
+export const layoutFloorWithRooms = (params) => {
+  return solveFloorLayout(params);
+};
+
+/**
+ * Phase 4 & Phase 6 — Generates N >= 30 design candidates with genuine diversity,
+ * evaluates them against HARD gates via validatePlan, ranks passing candidates via scorePlan,
+ * and returns the highest scoring candidate.
  */
 export const generateConceptCandidates = (plot, requirements, conceptGeneratorFn, conceptName) => {
-  const candidateConfigs = [
-    { variant: 'standard', stairSide: 'auto', tierRatioDelta: 0 },
-    { variant: 'stair_flipped', stairSide: 'flipped', tierRatioDelta: 0 },
-    { variant: 'ratio_expanded', stairSide: 'auto', tierRatioDelta: 0.04 },
-  ];
-
+  const N = 30; // Generate 30 diverse candidates
   const scoredCandidates = [];
+  const baseSeed = (Number(plot.width) || 30) * 100 + (Number(plot.length) || 50);
 
-  for (const config of candidateConfigs) {
+  for (let i = 0; i < N; i++) {
+    const rng = createRng(baseSeed + i * 17);
+    const topologies = [TOPOLOGY_TYPES.CENTRAL_PASSAGE, TOPOLOGY_TYPES.NARROW_SPINE, TOPOLOGY_TYPES.DUAL_WING];
+    const topology = topologies[i % topologies.length];
+    const corridorSide = i % 3 === 0 ? 'left' : i % 3 === 1 ? 'right' : 'center';
+    const stairSide = i % 2 === 0 ? 'left' : 'right';
+    const entrySide = i % 2 === 0 ? 'right' : 'left';
+
+    const config = {
+      variant: `cand_${i}`,
+      topology,
+      corridorSide,
+      stairSide,
+      entrySide,
+      rng,
+    };
+
     try {
       const plan = conceptGeneratorFn(plot, requirements, config);
       const validation = validatePlan(plan);
@@ -737,11 +353,11 @@ export const generateConceptCandidates = (plot, requirements, conceptGeneratorFn
   }
 
   if (scoredCandidates.length === 0) {
-    // Return standard if candidate search fails
-    return conceptGeneratorFn(plot, requirements, { variant: 'standard', stairSide: 'auto', tierRatioDelta: 0 });
+    // Fallback: standard candidate
+    return conceptGeneratorFn(plot, requirements, { variant: 'standard', stairSide: 'left', entrySide: 'right' });
   }
 
-  // Keep the best layout according to Phase 6 soft scoring
+  // Sort descending by score and pick best
   scoredCandidates.sort((a, b) => b.score - a.score);
   const bestPlan = scoredCandidates[0].plan;
   bestPlan.softScore = scoredCandidates[0].score;
@@ -750,7 +366,7 @@ export const generateConceptCandidates = (plot, requirements, conceptGeneratorFn
 };
 
 /**
- * 1. BALANCED LAYOUT GENERATOR (Dynamic, Proportional, Multi-Floor)
+ * 1. BALANCED LAYOUT GENERATOR
  */
 export const generateSingleBalancedCandidate = (plot, requirements = {}, variantOptions = {}) => {
   const plotW = Number(plot.width) || 30;
@@ -812,7 +428,7 @@ export const generateBalancedLayout = (plot, requirements = {}) => {
 };
 
 /**
- * 2. OPEN LIVING CONCEPT (Contemporary Flow, Expansive Great Room Core)
+ * 2. OPEN LIVING CONCEPT
  */
 export const generateSingleOpenLivingCandidate = (plot, requirements = {}, variantOptions = {}) => {
   const plotW = Number(plot.width) || 30;
@@ -874,7 +490,7 @@ export const generateOpenLivingLayout = (plot, requirements = {}) => {
 };
 
 /**
- * 3. VASTU PRIORITY CONCEPT (Strict 8-Sector Cosmic Directional Alignment)
+ * 3. VASTU PRIORITY CONCEPT
  */
 export const generateSingleVastuCandidate = (plot, requirements = {}, variantOptions = {}) => {
   const plotW = Number(plot.width) || 30;
